@@ -48,10 +48,10 @@ export default function Home() {
       />
 
       {/* Building Blocks Inventory */}
-      {/* <Inventory
+      <Inventory
         onBlockSelect={setSelectedBlock}
         selectedBlock={selectedBlock}
-      /> */}
+      />
 
       {/* Floating Grid Controls Panel */}
       <FloatingPanel

@@ -30,6 +30,11 @@ export default function FloatingPanel({
   const panelRef = useRef<HTMLDivElement>(null);
 
   const handleMouseDown = (e: React.MouseEvent) => {
+    // Don't start dragging if clicking on the collapse button
+    if ((e.target as HTMLElement).closest('button')) {
+      return;
+    }
+
     if (
       e.target === e.currentTarget ||
       (e.target as HTMLElement).closest(".drag-handle")
@@ -90,7 +95,7 @@ export default function FloatingPanel({
   return (
     <div
       ref={panelRef}
-      className={`fixed bg-white rounded-lg border select-none z-10 transition-all duration-200 ${
+      className={`fixed bg-white rounded-lg border select-none z-10 ${
         isDragging
           ? 'shadow-2xl border-blue-300 scale-105'
           : 'shadow-lg border-gray-200'

@@ -37,6 +37,10 @@ blocks should be able to be chosen via simple dialog window which is collapsable
 around the screen. Lets call this the Inventory. The inventory should have smooth animations when you hover over
 an icon.
 
+Inventory:
+The inventory should be a kind of floating window.
+The inventory should dock onto each side if near the edge. It should unstick if the user pulls it far from the edge.
+
 Simulation Start / Stop:
 You should be be able to start / stop / speed up the simulation via floating action buttons at the bottom.
 They should be cleanly animated and stand out. They should have a clean sound.
