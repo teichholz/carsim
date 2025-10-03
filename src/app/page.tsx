@@ -2,13 +2,16 @@
 
 import EquilateralGrid from "@/components/EquilateralGrid";
 import FloatingPanel from "@/components/FloatingPanel";
+import Inventory from "@/components/Inventory";
 import { usePersistentState } from "@/hooks/usePersistentState";
 import { useEffect, useState } from "react";
+import type { BuildingBlock } from "@/types/building-blocks";
 
 export default function Home() {
   const [gridSize, setGridSize] = usePersistentState('grid-size', 50);
   const [showGridLines, setShowGridLines] = usePersistentState('show-grid-lines', false);
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
+  const [selectedBlock, setSelectedBlock] = useState<BuildingBlock | null>(null);
 
 
   // Update viewport size on mount and resize
@@ -43,6 +46,12 @@ export default function Home() {
         cellSize={gridSize}
         showGridLines={showGridLines}
       />
+
+      {/* Building Blocks Inventory */}
+      {/* <Inventory
+        onBlockSelect={setSelectedBlock}
+        selectedBlock={selectedBlock}
+      /> */}
 
       {/* Floating Grid Controls Panel */}
       <FloatingPanel
@@ -109,6 +118,7 @@ export default function Home() {
               Viewport: {viewportSize.width}×{viewportSize.height}
             </div>
             <div>Grid Lines: {showGridLines ? "Enabled" : "Disabled"}</div>
+            <div>Selected Block: {selectedBlock?.name || "None"}</div>
           </div>
         </div>
       </FloatingPanel>

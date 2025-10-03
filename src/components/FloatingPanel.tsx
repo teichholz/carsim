@@ -11,7 +11,7 @@ interface FloatingPanelProps {
   storageKey?: string;
 }
 
-export default function FloatingPanelWithHook({
+export default function FloatingPanel({
   title,
   children,
   initialPosition = { x: 20, y: 20 },
@@ -90,20 +90,36 @@ export default function FloatingPanelWithHook({
   return (
     <div
       ref={panelRef}
-      className={`fixed bg-white rounded-lg shadow-lg border border-gray-200 select-none z-10 ${className}`}
+      className={`fixed bg-white rounded-lg border select-none z-10 transition-all duration-200 ${
+        isDragging
+          ? 'shadow-2xl border-blue-300 scale-105'
+          : 'shadow-lg border-gray-200'
+      } ${className}`}
       style={{
         left: position.x,
         top: position.y,
         cursor: isDragging ? "grabbing" : "grab",
         minWidth: "280px",
+        transform: isDragging ? 'scale(1.02)' : 'scale(1)',
       }}
       onMouseDown={handleMouseDown}
       role="dialog"
       aria-label={title}
     >
       {/* Header with drag handle */}
-      <div className="drag-handle flex items-center justify-between p-4 border-b border-gray-200 cursor-grab active:cursor-grabbing">
-        <h3 className="text-lg font-semibold text-gray-800">{title}</h3>
+      <div className={`drag-handle flex items-center justify-between p-4 border-b border-gray-200 transition-colors duration-200 ${
+        isDragging
+          ? 'bg-blue-50 border-blue-200'
+          : 'hover:bg-gray-50'
+      }`}>
+        <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-1">
+            <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
+            <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
+            <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
+          </div>
+          <h3 className="text-lg font-semibold text-gray-800">{title}</h3>
+        </div>
         <div className="flex items-center gap-2">
           <button
             type="button"
