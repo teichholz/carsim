@@ -1,3 +1,6 @@
+/**
+ * A value that is stored in localStorage, so that it persists across page reloads.
+ */
 type PersistentValue<T> = {
     current: T;
 }

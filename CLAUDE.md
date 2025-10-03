@@ -17,8 +17,13 @@ The grid structure should only be seen when you hover a single grid quadrant wit
 Then than quadrant should stand out / be highlighted.
 
 Streets:
-Strees should be able to be align both horizontally as well as vertically depending on the context.
+Streets are a building block.
+Streets should be able to be align both horizontally as well as vertically depending on the context.
 They should also be able to build curves depending on the context.
+If a street is placed and has no valid neighbour to cennect to, it should remain in a temporary alone state
+which is represented by it having a smaller scale and being aligned vertically.
+Streets should be draws as 2 horizontal or vertial lines near the corner of the grid quadrant but aligning
+with the grid quadrant.
 
 Car Generators:
 Car generators generate cars. The should have properties like:

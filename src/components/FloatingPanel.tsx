@@ -8,7 +8,6 @@ interface FloatingPanelProps {
   children: React.ReactNode;
   initialPosition?: { x: number; y: number };
   className?: string;
-  storageKey?: string;
 }
 
 export default function FloatingPanel({
@@ -16,17 +15,16 @@ export default function FloatingPanel({
   children,
   initialPosition = { x: 20, y: 20 },
   className = "",
-  storageKey,
 }: FloatingPanelProps) {
   // Use the persistent state hook - much cleaner!
   const [position, setPosition] = usePersistentState(
-    storageKey || `${title}-position`,
+`${title}-position`,
     initialPosition
   );
 
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = usePersistentState(`${title}-collapsed`, false);
   const panelRef = useRef<HTMLDivElement>(null);
 
   const handleMouseDown = (e: React.MouseEvent) => {

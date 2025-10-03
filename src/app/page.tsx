@@ -58,7 +58,6 @@ export default function Home() {
         title="Grid Controls"
         initialPosition={{ x: 20, y: 200 }}
         className="min-w-[280px]"
-        storageKey="grid-controls"
       >
         <div className="space-y-4">
           <div>
