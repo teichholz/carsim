@@ -1,14 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import Link from "next/link";
-import EquilateralGrid from "../components/EquilateralGrid";
-import FloatingPanel from "../components/FloatingPanel";
+import EquilateralGrid from "@/components/EquilateralGrid";
+import FloatingPanel from "@/components/FloatingPanel";
+import { usePersistentState } from "@/hooks/usePersistentState";
+import { useEffect, useState } from "react";
 
 export default function Home() {
-  const [gridSize, setGridSize] = useState(50);
-  const [showGridLines, setShowGridLines] = useState(false);
+  const [gridSize, setGridSize] = usePersistentState('grid-size', 50);
+  const [showGridLines, setShowGridLines] = usePersistentState('show-grid-lines', false);
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
+
 
   // Update viewport size on mount and resize
   useEffect(() => {
@@ -48,6 +49,7 @@ export default function Home() {
         title="Grid Controls"
         initialPosition={{ x: 20, y: 200 }}
         className="min-w-[280px]"
+        storageKey="grid-controls"
       >
         <div className="space-y-4">
           <div>

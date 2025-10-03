@@ -1,28 +1,39 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useCallback, useRef, useEffect, useState } from "react";
+import { usePersistentState } from "@/hooks/usePersistentState";
 
 interface FloatingPanelProps {
   title: string;
   children: React.ReactNode;
   initialPosition?: { x: number; y: number };
   className?: string;
+  storageKey?: string;
 }
 
-export default function FloatingPanel({
+export default function FloatingPanelWithHook({
   title,
   children,
   initialPosition = { x: 20, y: 20 },
   className = "",
+  storageKey,
 }: FloatingPanelProps) {
-  const [position, setPosition] = useState(initialPosition);
+  // Use the persistent state hook - much cleaner!
+  const [position, setPosition] = usePersistentState(
+    storageKey || `${title}-position`,
+    initialPosition
+  );
+
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [isCollapsed, setIsCollapsed] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget || (e.target as HTMLElement).closest('.drag-handle')) {
+    if (
+      e.target === e.currentTarget ||
+      (e.target as HTMLElement).closest(".drag-handle")
+    ) {
       setIsDragging(true);
       const rect = panelRef.current?.getBoundingClientRect();
       if (rect) {
@@ -34,21 +45,28 @@ export default function FloatingPanel({
     }
   };
 
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (isDragging) {
-      const newX = e.clientX - dragOffset.x;
-      const newY = e.clientY - dragOffset.y;
+  const handleMouseMove = useCallback(
+    (e: MouseEvent) => {
+      if (isDragging) {
+        const newX = e.clientX - dragOffset.x;
+        const newY = e.clientY - dragOffset.y;
 
-      // Keep panel within viewport bounds
-      const maxX = window.innerWidth - (panelRef.current?.offsetWidth || 300);
-      const maxY = window.innerHeight - (panelRef.current?.offsetHeight || 200);
+        // Keep panel within viewport bounds
+        const maxX = window.innerWidth - (panelRef.current?.offsetWidth || 300);
+        const maxY =
+          window.innerHeight - (panelRef.current?.offsetHeight || 200);
 
-      setPosition({
-        x: Math.max(0, Math.min(newX, maxX)),
-        y: Math.max(0, Math.min(newY, maxY)),
-      });
-    }
-  }, [isDragging, dragOffset]);
+        const newPosition = {
+          x: Math.max(0, Math.min(newX, maxX)),
+          y: Math.max(0, Math.min(newY, maxY)),
+        };
+
+        // Just call setPosition - persistence is automatic!
+        setPosition(newPosition);
+      }
+    },
+    [isDragging, dragOffset, setPosition],
+  );
 
   const handleMouseUp = useCallback(() => {
     setIsDragging(false);
@@ -60,11 +78,11 @@ export default function FloatingPanel({
       const handleGlobalMouseMove = (e: MouseEvent) => handleMouseMove(e);
       const handleGlobalMouseUp = () => handleMouseUp();
 
-      document.addEventListener('mousemove', handleGlobalMouseMove);
-      document.addEventListener('mouseup', handleGlobalMouseUp);
+      document.addEventListener("mousemove", handleGlobalMouseMove);
+      document.addEventListener("mouseup", handleGlobalMouseUp);
       return () => {
-        document.removeEventListener('mousemove', handleGlobalMouseMove);
-        document.removeEventListener('mouseup', handleGlobalMouseUp);
+        document.removeEventListener("mousemove", handleGlobalMouseMove);
+        document.removeEventListener("mouseup", handleGlobalMouseUp);
       };
     }
   }, [isDragging, handleMouseMove, handleMouseUp]);
@@ -76,8 +94,8 @@ export default function FloatingPanel({
       style={{
         left: position.x,
         top: position.y,
-        cursor: isDragging ? 'grabbing' : 'grab',
-        minWidth: '280px',
+        cursor: isDragging ? "grabbing" : "grab",
+        minWidth: "280px",
       }}
       onMouseDown={handleMouseDown}
       role="dialog"
@@ -95,24 +113,25 @@ export default function FloatingPanel({
             aria-label={isCollapsed ? "Expand panel" : "Collapse panel"}
           >
             <svg
-              className={`w-4 h-4 text-gray-600 transition-transform ${isCollapsed ? 'rotate-180' : ''}`}
+              className={`w-4 h-4 text-gray-600 transition-transform ${isCollapsed ? "rotate-180" : ""}`}
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
               aria-hidden="true"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 9l-7 7-7-7"
+              />
             </svg>
           </button>
         </div>
       </div>
 
       {/* Content */}
-      {!isCollapsed && (
-        <div className="p-4">
-          {children}
-        </div>
-      )}
+      {!isCollapsed && <div className="p-4">{children}</div>}
     </div>
   );
 }
