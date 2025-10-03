@@ -1,103 +1,159 @@
-import Image from "next/image";
+"use client";
+
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import EquilateralGrid from "../components/EquilateralGrid";
+import FloatingPanel from "../components/FloatingPanel";
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [gridSize, setGridSize] = useState(50);
+  const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+  // Update viewport size on mount and resize
+  useEffect(() => {
+    const updateViewportSize = () => {
+      setViewportSize({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+    };
+
+    updateViewportSize();
+    window.addEventListener('resize', updateViewportSize);
+    return () => window.removeEventListener('resize', updateViewportSize);
+  }, []);
+
+  // Don't render until viewport size is available
+  if (viewportSize.width === 0 || viewportSize.height === 0) {
+    return <div className="w-full h-screen bg-gray-100 flex items-center justify-center">
+      <div className="text-gray-600">Loading...</div>
+    </div>;
+  }
+
+  return (
+    <div className="w-full h-screen bg-gray-100 relative overflow-hidden">
+      {/* Fullscreen Grid */}
+      <EquilateralGrid
+        width={viewportSize.width}
+        height={viewportSize.height}
+        cellSize={gridSize}
+        showGridLines={true}
+      />
+
+      {/* Floating Title Panel */}
+      <FloatingPanel
+        title="Car Simulation Grid"
+        initialPosition={{ x: 20, y: 20 }}
+        className="min-w-[300px]"
+      >
+        <div className="space-y-3">
+          <p className="text-sm text-gray-600">
+            Equilateral grid system for traffic simulation
+          </p>
+          <Link
+            href="/demo"
+            className="inline-block px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors text-sm"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+            Advanced Demo →
+          </Link>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </FloatingPanel>
+
+      {/* Floating Grid Controls Panel */}
+      <FloatingPanel
+        title="Grid Controls"
+        initialPosition={{ x: 20, y: 200 }}
+        className="min-w-[280px]"
+      >
+        <div className="space-y-4">
+          <div>
+            <label htmlFor="gridSizeSlider" className="block text-sm font-medium text-gray-700 mb-2">
+              Cell Size: {gridSize}px
+            </label>
+            <input
+              id="gridSizeSlider"
+              type="range"
+              min="20"
+              max="100"
+              value={gridSize}
+              onChange={(e) => setGridSize(Number(e.target.value))}
+              className="w-full"
+            />
+          </div>
+          <div className="text-xs text-gray-500 space-y-1">
+            <div>• Adjust cell size with slider</div>
+            <div>• Grid scales with cell size</div>
+            <div>• Maintains equilateral properties</div>
+          </div>
+        </div>
+      </FloatingPanel>
+
+      {/* Floating Features Panel */}
+      <FloatingPanel
+        title="Grid Features"
+        initialPosition={{ x: viewportSize.width - 320, y: 20 }}
+        className="min-w-[300px]"
+      >
+        <ul className="space-y-2 text-sm text-gray-700">
+          <li className="flex items-center">
+            <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+            <span>Equilateral grid cells</span>
+          </li>
+          <li className="flex items-center">
+            <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
+            <span>Zoom in/out with mouse wheel</span>
+          </li>
+          <li className="flex items-center">
+            <div className="w-2 h-2 bg-purple-500 rounded-full mr-2"></div>
+            <span>Pan with Ctrl + Mouse drag</span>
+          </li>
+          <li className="flex items-center">
+            <div className="w-2 h-2 bg-yellow-500 rounded-full mr-2"></div>
+            <span>Hover highlighting</span>
+          </li>
+          <li className="flex items-center">
+            <div className="w-2 h-2 bg-red-500 rounded-full mr-2"></div>
+            <span>Infinite grid rendering</span>
+          </li>
+          <li className="flex items-center">
+            <div className="w-2 h-2 bg-indigo-500 rounded-full mr-2"></div>
+            <span>Performance optimized</span>
+          </li>
+        </ul>
+      </FloatingPanel>
+
+      {/* Floating Instructions Panel */}
+      <FloatingPanel
+        title="Instructions"
+        initialPosition={{ x: viewportSize.width - 320, y: 300 }}
+        className="min-w-[300px]"
+      >
+        <div className="text-sm text-gray-600 space-y-2">
+          <div className="font-medium text-gray-800">Controls:</div>
+          <div>• Hover over grid cells to highlight</div>
+          <div>• Ctrl + Drag to pan around</div>
+          <div>• Scroll to zoom in/out</div>
+          <div>• Drag panels to reposition</div>
+          <div>• Click collapse button to minimize</div>
+        </div>
+      </FloatingPanel>
+
+      {/* Floating Next Steps Panel */}
+      <FloatingPanel
+        title="Development Progress"
+        initialPosition={{ x: viewportSize.width - 320, y: 500 }}
+        className="min-w-[300px]"
+      >
+        <div className="text-sm text-gray-600 space-y-1">
+          <div>✅ Equilateral grid system</div>
+          <div>✅ Fullscreen layout</div>
+          <div>✅ Floating UI panels</div>
+          <div>⏳ Building blocks (streets, roundabouts)</div>
+          <div>⏳ Car generators and simulation</div>
+          <div>⏳ Traffic behavior modeling</div>
+          <div>⏳ Sound effects</div>
+        </div>
+      </FloatingPanel>
     </div>
   );
 }
