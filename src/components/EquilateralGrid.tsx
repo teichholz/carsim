@@ -46,38 +46,6 @@ export default function EquilateralGrid({
     y: 0,
   });
 
-  // Calculate visible grid cells
-  const getVisibleCells = useCallback((): GridCell[] => {
-    const { scale, x, y } = gridState;
-    const scaledCellSize = cellSize * scale;
-
-    // Calculate bounds of visible area
-    const left = -x / scaledCellSize;
-    const top = -y / scaledCellSize;
-    const right = (width - x) / scaledCellSize;
-    const bottom = (height - y) / scaledCellSize;
-
-    const cells: GridCell[] = [];
-
-    // Add some padding to ensure smooth scrolling
-    const padding = 2;
-    const startX = Math.floor(left) - padding;
-    const endX = Math.ceil(right) + padding;
-    const startY = Math.floor(top) - padding;
-    const endY = Math.ceil(bottom) + padding;
-
-    for (let gridX = startX; gridX <= endX; gridX++) {
-      for (let gridY = startY; gridY <= endY; gridY++) {
-        cells.push({
-          x: gridX,
-          y: gridY,
-          size: scaledCellSize,
-        });
-      }
-    }
-
-    return cells;
-  }, [gridState, cellSize, width, height]);
 
   // Handle wheel events for zooming
   const handleWheel = useCallback(
@@ -184,55 +152,85 @@ export default function EquilateralGrid({
     [],
   );
 
-  // Render grid lines for a cell
-  const renderGridCell = useCallback(
-    (cell: GridCell) => {
-      const { x: gridX, y: gridY, size } = cell;
-      const pixelX = gridX * size + gridState.x;
-      const pixelY = gridY * size + gridState.y;
+  // Render the entire grid as a single geometry
+  const renderGridLines = useCallback(() => {
+    const { scale, x, y } = gridState;
+    const scaledCellSize = cellSize * scale;
+    const strokeWidth = Math.max(0.5, Math.min(2, scale));
+    const opacity = 0.1;
 
-      const isHovered =
-        hoveredCell && hoveredCell.x === gridX && hoveredCell.y === gridY;
+    // Calculate the offset to align the grid properly
+    const offsetX = ((x % scaledCellSize) + scaledCellSize) % scaledCellSize;
+    const offsetY = ((y % scaledCellSize) + scaledCellSize) % scaledCellSize;
 
-      const opacity = isHovered ? 0.6 : 0.1;
+    return (
+      <Group
+        key="grid-lines"
+        x={-offsetX}
+        y={-offsetY}
+        width={width + scaledCellSize}
+        height={height + scaledCellSize}
+      >
+        {/* Vertical lines */}
+        {Array.from({ length: Math.ceil((width + scaledCellSize) / scaledCellSize) + 1 }, (_, i) => (
+          <Rect
+            key={`vline-${i * scaledCellSize}`}
+            x={i * scaledCellSize}
+            y={0}
+            width={strokeWidth}
+            height={height + scaledCellSize}
+            fill="#6b7280"
+            opacity={opacity}
+            listening={false}
+          />
+        ))}
 
-      return (
-        <Group key={`cell-${gridX}-${gridY}`}>
-          {/* Cell background highlight when hovered */}
-          {isHovered && (
-            <Rect
-              x={pixelX}
-              y={pixelY}
-              width={size}
-              height={size}
-              fill="#3b82f6"
-              opacity={0.1}
-              cornerRadius={5}
-            />
-          )}
+        {/* Horizontal lines */}
+        {Array.from({ length: Math.ceil((height + scaledCellSize) / scaledCellSize) + 1 }, (_, i) => (
+          <Rect
+            key={`hline-${i * scaledCellSize}`}
+            x={0}
+            y={i * scaledCellSize}
+            width={width + scaledCellSize}
+            height={strokeWidth}
+            fill="#6b7280"
+            opacity={opacity}
+            listening={false}
+          />
+        ))}
+      </Group>
+    );
+  }, [gridState, cellSize, width, height]);
 
-          {/* Grid rectangle - single draw call instead of 4 lines */}
-          {showGridLines && (
-            <Rect
-              x={pixelX}
-              y={pixelY}
-              width={size}
-              height={size}
-              fill="transparent"
-              stroke="#6b7280"
-              strokeWidth={Math.max(0.5, Math.min(2, gridState.scale))}
-              opacity={opacity}
-              perfectDrawEnabled={false}
-              listening={false}
-            />
-          )}
-        </Group>
-      );
-    },
-    [gridState, hoveredCell, showGridLines],
-  );
+  // Render highlighted grid cell
+  const renderHighlightedCell = useCallback(() => {
+    if (!hoveredCell) return null;
 
-  const visibleCells = getVisibleCells();
+    const { scale, x, y } = gridState;
+    const scaledCellSize = cellSize * scale;
+
+    // Calculate the offset to align with grid lines
+    const offsetX = ((x % scaledCellSize) + scaledCellSize) % scaledCellSize;
+    const offsetY = ((y % scaledCellSize) + scaledCellSize) % scaledCellSize;
+
+    // Calculate the pixel position of the hovered cell
+    const pixelX = hoveredCell.x * scaledCellSize - offsetX;
+    const pixelY = hoveredCell.y * scaledCellSize - offsetY;
+
+    return (
+      <Rect
+        key={`highlight-${hoveredCell.x}-${hoveredCell.y}`}
+        x={pixelX}
+        y={pixelY}
+        width={scaledCellSize}
+        height={scaledCellSize}
+        fill="#3b82f6"
+        opacity={0.1}
+        cornerRadius={5}
+        listening={false}
+      />
+    );
+  }, [gridState, hoveredCell, cellSize]);
 
   return (
     <div className="w-full h-full bg-white border border-gray-200 rounded-lg overflow-hidden">
@@ -247,7 +245,15 @@ export default function EquilateralGrid({
         onClick={handleStageClick}
         draggable={false}
       >
-        <Layer>{visibleCells.map(renderGridCell)}</Layer>
+        {/* Grid lines layer */}
+        <Layer >
+          {showGridLines && renderGridLines()}
+        </Layer>
+
+        {/* Highlighted grid layer */}
+        <Layer>
+          {renderHighlightedCell()}
+        </Layer>
       </Stage>
 
       {/* Grid info overlay */}
