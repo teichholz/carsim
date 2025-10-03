@@ -107,8 +107,13 @@ export default function EquilateralGrid({
       const { scale, x, y } = gridState;
       const scaledCellSize = cellSize * scale;
 
-      const gridX = Math.floor((pointer.x - x) / scaledCellSize);
-      const gridY = Math.floor((pointer.y - y) / scaledCellSize);
+      // Calculate the offset to align with grid positioning
+      const offsetX = ((x % scaledCellSize) + scaledCellSize) % scaledCellSize;
+      const offsetY = ((y % scaledCellSize) + scaledCellSize) % scaledCellSize;
+
+      // Calculate grid position accounting for the offset
+      const gridX = Math.floor((pointer.x + offsetX) / scaledCellSize);
+      const gridY = Math.floor((pointer.y + offsetY) / scaledCellSize);
 
       setHoveredCell({
         x: gridX,
