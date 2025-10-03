@@ -2,7 +2,7 @@
 
 import type Konva from "konva";
 import { useCallback, useRef, useState } from "react";
-import { Group, Layer, Line, Rect, Stage } from "react-konva";
+import { Group, Layer, Rect, Stage } from "react-konva";
 
 interface GridState {
   scale: number;
@@ -211,34 +211,20 @@ export default function EquilateralGrid({
             />
           )}
 
-          {/* Grid lines */}
+          {/* Grid rectangle - single draw call instead of 4 lines */}
           {showGridLines && (
-            <>
-              <Line
-                points={[pixelX, pixelY, pixelX + size, pixelY]}
-                stroke="#6b7280"
-                strokeWidth={1}
-                opacity={opacity}
-              />
-              <Line
-                points={[pixelX, pixelY, pixelX, pixelY + size]}
-                stroke="#6b7280"
-                strokeWidth={1}
-                opacity={opacity}
-              />
-              <Line
-                points={[pixelX + size, pixelY, pixelX + size, pixelY + size]}
-                stroke="#6b7280"
-                strokeWidth={1}
-                opacity={opacity}
-              />
-              <Line
-                points={[pixelX, pixelY + size, pixelX + size, pixelY + size]}
-                stroke="#6b7280"
-                strokeWidth={1}
-                opacity={opacity}
-              />
-            </>
+            <Rect
+              x={pixelX}
+              y={pixelY}
+              width={size}
+              height={size}
+              fill="transparent"
+              stroke="#6b7280"
+              strokeWidth={Math.max(0.5, Math.min(2, gridState.scale))}
+              opacity={opacity}
+              perfectDrawEnabled={false}
+              listening={false}
+            />
           )}
         </Group>
       );
