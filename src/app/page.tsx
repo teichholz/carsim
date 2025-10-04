@@ -1,21 +1,40 @@
 "use client";
 
 import EquilateralGrid from "@/components/EquilateralGrid";
+import HighlightedCell from "@/components/HighlightedCell";
 import FloatingPanel from "@/components/FloatingPanel";
 import Inventory from "@/components/Inventory";
-import { useGridState, useViewportState, useSimulationState } from "@/hooks/useSimulationState";
+import {
+  useGridState,
+  useViewportState,
+  useSimulationState,
+  useSelectedQuadrant,
+} from "@/hooks/useSimulationState";
+import { Application, extend } from "@pixi/react";
+import { Container } from "pixi.js";
 import { useEffect, useState } from "react";
 import type { BuildingBlock } from "@/types/building-blocks";
 import { installEventHandling } from "@/services/event-manager";
+
+// Extend PIXI components to make them available as JSX
+extend({ Container });
 
 export default function Home() {
   // Get state from global store
   const { grid, setGridSize, setShowGridLines } = useGridState();
   const { viewport, setViewportSize } = useViewportState();
-  const { isSimulationRunning, simulationSpeed, setSimulationRunning, setSimulationSpeed } = useSimulationState();
+  const {
+    isSimulationRunning,
+    simulationSpeed,
+    setSimulationRunning,
+    setSimulationSpeed,
+  } = useSimulationState();
+  const { selectedQuadrant } = useSelectedQuadrant();
 
   // Local state for building block selection
-  const [selectedBlock, setSelectedBlock] = useState<BuildingBlock | null>(null);
+  const [selectedBlock, setSelectedBlock] = useState<BuildingBlock | null>(
+    null,
+  );
 
   useEffect(() => {
     installEventHandling();
@@ -47,12 +66,50 @@ export default function Home() {
   return (
     <div className="w-full h-screen bg-gray-100 relative overflow-hidden">
       {/* Fullscreen Grid */}
-      <EquilateralGrid
-        width={viewport.width}
-        height={viewport.height}
-        cellSize={grid.size}
-        showGridLines={grid.showGridLines}
-      />
+      <div className="w-full h-full bg-white border border-gray-200 rounded-lg overflow-hidden">
+        <Application
+          width={viewport.width}
+          height={viewport.height}
+          background={0xffffff}
+          antialias={true}
+        >
+          {/* Main container with transform */}
+          <pixiContainer
+            x={grid.position.x}
+            y={grid.position.y}
+            scale={grid.scale}
+          >
+            {/* Grid lines layer */}
+            {grid.showGridLines && (
+              <EquilateralGrid
+                width={viewport.width}
+                height={viewport.height}
+                cellSize={grid.size}
+              />
+            )}
+
+            {/* Highlighted grid layer */}
+            <HighlightedCell cellSize={grid.size} />
+          </pixiContainer>
+        </Application>
+
+        {/* Grid info overlay */}
+        <div className="absolute bottom-4 left-4 bg-black bg-opacity-50 text-white px-3 py-2 rounded text-sm">
+          <div>Scale: {grid.scale.toFixed(2)}x</div>
+          <div>
+            Position: ({Math.round(grid.position.x)},{" "}
+            {Math.round(grid.position.y)})
+          </div>
+          {selectedQuadrant && (
+            <div>
+              Cell: ({selectedQuadrant.x}, {selectedQuadrant.y})
+            </div>
+          )}
+          <div className="text-xs mt-1 opacity-75">
+            Ctrl + Drag to pan • Scroll to zoom
+          </div>
+        </div>
+      </div>
 
       {/* Building Blocks Inventory */}
       <Inventory
@@ -136,7 +193,10 @@ export default function Home() {
               </button>
             </div>
             <div>
-              <label htmlFor="simulationSpeed" className="block text-xs text-gray-600 mb-1">
+              <label
+                htmlFor="simulationSpeed"
+                className="block text-xs text-gray-600 mb-1"
+              >
                 Speed: {simulationSpeed}x
               </label>
               <input
