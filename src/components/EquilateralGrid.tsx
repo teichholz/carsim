@@ -29,38 +29,46 @@ export default function EquilateralGrid({
   const { selectedQuadrant } = useSelectedQuadrant();
 
 
-  // Render the entire grid as a single geometry
+  // Render the infinite grid
   const renderGridLines = useCallback(
     (graphics: PIXI.Graphics) => {
       graphics.clear();
 
       if (!showGridLines) return;
 
-      const { scale } = grid;
+      const { scale, position } = grid;
       const strokeWidth = Math.max(0.5, Math.min(2, scale));
-      const opacity = 0.1;
+      const opacity = 0.2;
 
       graphics.setStrokeStyle({ width: strokeWidth, color: 0x6b7280, alpha: opacity });
 
-      // Calculate how many grid cells we need to cover the visible area
-      // Since the container is transformed, we need to account for that
+      // Calculate the visible area in world coordinates
       const visibleWidth = width / scale;
       const visibleHeight = height / scale;
-      const cellsX = Math.ceil(visibleWidth / cellSize) + 2;
-      const cellsY = Math.ceil(visibleHeight / cellSize) + 2;
 
-      // Vertical lines
-      for (let i = 0; i <= cellsX; i++) {
-        const lineX = i * cellSize;
-        graphics.moveTo(lineX, 0);
-        graphics.lineTo(lineX, cellsY * cellSize);
+      // Calculate the world position of the top-left corner of the viewport
+      const worldLeft = -position.x / scale;
+      const worldTop = -position.y / scale;
+      const worldRight = worldLeft + visibleWidth;
+      const worldBottom = worldTop + visibleHeight;
+
+      // Calculate grid bounds with some padding for smooth scrolling
+      const padding = cellSize * 2; // Extra padding to ensure smooth transitions
+      const startX = Math.floor((worldLeft - padding) / cellSize) * cellSize;
+      const endX = Math.ceil((worldRight + padding) / cellSize) * cellSize;
+      const startY = Math.floor((worldTop - padding) / cellSize) * cellSize;
+      const endY = Math.ceil((worldBottom + padding) / cellSize) * cellSize;
+
+      // Draw vertical lines
+      for (let x = startX; x <= endX; x += cellSize) {
+        graphics.moveTo(x, startY);
+        graphics.lineTo(x, endY);
       }
 
-      // Horizontal lines
-      for (let i = 0; i <= cellsY; i++) {
-        const lineY = i * cellSize;
-        graphics.moveTo(0, lineY);
-        graphics.lineTo(cellsX * cellSize, lineY);
+      // Draw horizontal lines
+      for (let y = startY; y <= endY; y += cellSize) {
+        graphics.moveTo(startX, y);
+        graphics.lineTo(endX, y);
       }
 
       graphics.stroke();
@@ -75,13 +83,12 @@ export default function EquilateralGrid({
 
       if (!selectedQuadrant) return;
 
-      // The grid container already applies position and scale transformations
-      // So we just need to render the cell in local coordinates
-      const pixelX = selectedQuadrant.x * cellSize;
-      const pixelY = selectedQuadrant.y * cellSize;
+      // Convert grid coordinates to world coordinates
+      const worldX = selectedQuadrant.x * cellSize;
+      const worldY = selectedQuadrant.y * cellSize;
 
       graphics.setFillStyle({ color: 0x3b82f6, alpha: 0.1 });
-      graphics.roundRect(pixelX, pixelY, cellSize, cellSize, 5);
+      graphics.roundRect(worldX, worldY, cellSize, cellSize, 5);
       graphics.fill();
     },
     [selectedQuadrant, cellSize],
