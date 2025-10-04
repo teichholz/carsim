@@ -3,16 +3,23 @@
 import EquilateralGrid from "@/components/EquilateralGrid";
 import FloatingPanel from "@/components/FloatingPanel";
 import Inventory from "@/components/Inventory";
-import { usePersistentState } from "@/hooks/usePersistentState";
+import { useGridState, useViewportState, useSimulationState } from "@/hooks/useSimulationState";
 import { useEffect, useState } from "react";
 import type { BuildingBlock } from "@/types/building-blocks";
+import { installEventHandling } from "@/services/event-manager";
 
 export default function Home() {
-  const [gridSize, setGridSize] = usePersistentState('grid-size', 50);
-  const [showGridLines, setShowGridLines] = usePersistentState('show-grid-lines', false);
-  const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
+  // Get state from global store
+  const { grid, setGridSize, setShowGridLines } = useGridState();
+  const { viewport, setViewportSize } = useViewportState();
+  const { isSimulationRunning, simulationSpeed, setSimulationRunning, setSimulationSpeed } = useSimulationState();
+
+  // Local state for building block selection
   const [selectedBlock, setSelectedBlock] = useState<BuildingBlock | null>(null);
 
+  useEffect(() => {
+    installEventHandling();
+  }, []);
 
   // Update viewport size on mount and resize
   useEffect(() => {
@@ -26,10 +33,10 @@ export default function Home() {
     updateViewportSize();
     window.addEventListener("resize", updateViewportSize);
     return () => window.removeEventListener("resize", updateViewportSize);
-  }, []);
+  }, [setViewportSize]);
 
   // Don't render until viewport size is available
-  if (viewportSize.width === 0 || viewportSize.height === 0) {
+  if (viewport.width === 0 || viewport.height === 0) {
     return (
       <div className="w-full h-screen bg-gray-100 flex items-center justify-center">
         <div className="text-gray-600">Loading...</div>
@@ -41,10 +48,10 @@ export default function Home() {
     <div className="w-full h-screen bg-gray-100 relative overflow-hidden">
       {/* Fullscreen Grid */}
       <EquilateralGrid
-        width={viewportSize.width}
-        height={viewportSize.height}
-        cellSize={gridSize}
-        showGridLines={showGridLines}
+        width={viewport.width}
+        height={viewport.height}
+        cellSize={grid.size}
+        showGridLines={grid.showGridLines}
       />
 
       {/* Building Blocks Inventory */}
@@ -65,14 +72,14 @@ export default function Home() {
               htmlFor="gridSizeSlider"
               className="block text-sm font-medium text-gray-700 mb-2"
             >
-              Cell Size: {gridSize}px
+              Cell Size: {grid.size}px
             </label>
             <input
               id="gridSizeSlider"
               type="range"
               min="20"
               max="100"
-              value={gridSize}
+              value={grid.size}
               onChange={(e) => setGridSize(Number(e.target.value))}
               className="w-full"
             />
@@ -94,30 +101,67 @@ export default function Home() {
             <button
               id="gridLinesToggle"
               type="button"
-              onClick={() => setShowGridLines(!showGridLines)}
+              onClick={() => setShowGridLines(!grid.showGridLines)}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                showGridLines ? "bg-blue-600" : "bg-gray-200"
+                grid.showGridLines ? "bg-blue-600" : "bg-gray-200"
               }`}
               role="switch"
-              aria-checked={showGridLines}
+              aria-checked={grid.showGridLines}
               aria-label="Toggle grid lines visibility"
             >
               <span
                 className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  showGridLines ? "translate-x-6" : "translate-x-1"
+                  grid.showGridLines ? "translate-x-6" : "translate-x-1"
                 }`}
               />
             </button>
           </div>
 
+          {/* Simulation Controls */}
+          <div className="border-t pt-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-gray-700">
+                Simulation
+              </span>
+              <button
+                type="button"
+                onClick={() => setSimulationRunning(!isSimulationRunning)}
+                className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+                  isSimulationRunning
+                    ? "bg-red-500 text-white hover:bg-red-600"
+                    : "bg-green-500 text-white hover:bg-green-600"
+                }`}
+              >
+                {isSimulationRunning ? "Stop" : "Start"}
+              </button>
+            </div>
+            <div>
+              <label htmlFor="simulationSpeed" className="block text-xs text-gray-600 mb-1">
+                Speed: {simulationSpeed}x
+              </label>
+              <input
+                id="simulationSpeed"
+                type="range"
+                min="0.1"
+                max="5"
+                step="0.1"
+                value={simulationSpeed}
+                onChange={(e) => setSimulationSpeed(Number(e.target.value))}
+                className="w-full"
+              />
+            </div>
+          </div>
+
           {/* Debug Info */}
           <div className="text-xs text-gray-500 space-y-1 pt-3">
-            <div>Grid Size: {gridSize}px</div>
+            <div>Grid Size: {grid.size}px</div>
+            <div>Grid Scale: {grid.scale.toFixed(2)}x</div>
             <div>
-              Viewport: {viewportSize.width}×{viewportSize.height}
+              Viewport: {viewport.width}×{viewport.height}
             </div>
-            <div>Grid Lines: {showGridLines ? "Enabled" : "Disabled"}</div>
+            <div>Grid Lines: {grid.showGridLines ? "Enabled" : "Disabled"}</div>
             <div>Selected Block: {selectedBlock?.name || "None"}</div>
+            <div>Simulation: {isSimulationRunning ? "Running" : "Stopped"}</div>
           </div>
         </div>
       </FloatingPanel>
