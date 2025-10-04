@@ -36,29 +36,31 @@ export default function EquilateralGrid({
 
       if (!showGridLines) return;
 
-      const { scale, position } = grid;
-      const scaledCellSize = cellSize * scale;
+      const { scale } = grid;
       const strokeWidth = Math.max(0.5, Math.min(2, scale));
       const opacity = 0.1;
 
-      // Calculate the offset to align the grid properly
-      const offsetX = ((position.x % scaledCellSize) + scaledCellSize) % scaledCellSize;
-      const offsetY = ((position.y % scaledCellSize) + scaledCellSize) % scaledCellSize;
-
       graphics.setStrokeStyle({ width: strokeWidth, color: 0x6b7280, alpha: opacity });
 
+      // Calculate how many grid cells we need to cover the visible area
+      // Since the container is transformed, we need to account for that
+      const visibleWidth = width / scale;
+      const visibleHeight = height / scale;
+      const cellsX = Math.ceil(visibleWidth / cellSize) + 2;
+      const cellsY = Math.ceil(visibleHeight / cellSize) + 2;
+
       // Vertical lines
-      for (let i = 0; i <= Math.ceil((width + scaledCellSize) / scaledCellSize) + 1; i++) {
-        const lineX = i * scaledCellSize - offsetX;
+      for (let i = 0; i <= cellsX; i++) {
+        const lineX = i * cellSize;
         graphics.moveTo(lineX, 0);
-        graphics.lineTo(lineX, height + scaledCellSize);
+        graphics.lineTo(lineX, cellsY * cellSize);
       }
 
       // Horizontal lines
-      for (let i = 0; i <= Math.ceil((height + scaledCellSize) / scaledCellSize) + 1; i++) {
-        const lineY = i * scaledCellSize - offsetY;
+      for (let i = 0; i <= cellsY; i++) {
+        const lineY = i * cellSize;
         graphics.moveTo(0, lineY);
-        graphics.lineTo(width + scaledCellSize, lineY);
+        graphics.lineTo(cellsX * cellSize, lineY);
       }
 
       graphics.stroke();
@@ -73,22 +75,16 @@ export default function EquilateralGrid({
 
       if (!selectedQuadrant) return;
 
-      const { scale, position } = grid;
-      const scaledCellSize = cellSize * scale;
-
-      // Calculate the offset to align with grid lines
-      const offsetX = ((position.x % scaledCellSize) + scaledCellSize) % scaledCellSize;
-      const offsetY = ((position.y % scaledCellSize) + scaledCellSize) % scaledCellSize;
-
-      // Calculate the pixel position of the hovered cell
-      const pixelX = selectedQuadrant.x * scaledCellSize - offsetX;
-      const pixelY = selectedQuadrant.y * scaledCellSize - offsetY;
+      // The grid container already applies position and scale transformations
+      // So we just need to render the cell in local coordinates
+      const pixelX = selectedQuadrant.x * cellSize;
+      const pixelY = selectedQuadrant.y * cellSize;
 
       graphics.setFillStyle({ color: 0x3b82f6, alpha: 0.1 });
-      graphics.roundRect(pixelX, pixelY, scaledCellSize, scaledCellSize, 5);
+      graphics.roundRect(pixelX, pixelY, cellSize, cellSize, 5);
       graphics.fill();
     },
-    [grid, selectedQuadrant, cellSize],
+    [selectedQuadrant, cellSize],
   );
 
 

@@ -2,6 +2,7 @@ import type { GridState, ViewportState, GridCell, GridTransform } from '@/types/
 
 /**
  * Convert screen coordinates to grid coordinates
+ * The grid container is transformed by position and scale, so we need to reverse that transformation
  */
 export function screenToGrid(
   screenX: number,
@@ -10,21 +11,22 @@ export function screenToGrid(
   _viewportState: ViewportState
 ): { x: number; y: number } {
   const { scale, position, size } = gridState;
-  const scaledCellSize = size * scale;
+  const cellSize = size; // Use base cell size, not scaled
 
-  // Calculate the offset to align with grid positioning
-  const offsetX = ((position.x % scaledCellSize) + scaledCellSize) % scaledCellSize;
-  const offsetY = ((position.y % scaledCellSize) + scaledCellSize) % scaledCellSize;
+  // Reverse the container transformation: first subtract position, then divide by scale
+  const transformedX = (screenX - position.x) / scale;
+  const transformedY = (screenY - position.y) / scale;
 
-  // Convert to grid coordinates
-  const gridX = Math.floor((screenX + offsetX) / scaledCellSize);
-  const gridY = Math.floor((screenY + offsetY) / scaledCellSize);
+  // Now convert to grid coordinates using the base cell size
+  const gridX = Math.floor(transformedX / cellSize);
+  const gridY = Math.floor(transformedY / cellSize);
 
   return { x: gridX, y: gridY };
 }
 
 /**
  * Convert grid coordinates to screen coordinates
+ * Apply the container transformation: first multiply by cell size, then apply scale and position
  */
 export function gridToScreen(
   gridX: number,
@@ -33,15 +35,15 @@ export function gridToScreen(
   _viewportState: ViewportState
 ): { x: number; y: number } {
   const { scale, position, size } = gridState;
-  const scaledCellSize = size * scale;
+  const cellSize = size; // Use base cell size
 
-  // Calculate the offset to align with grid positioning
-  const offsetX = ((position.x % scaledCellSize) + scaledCellSize) % scaledCellSize;
-  const offsetY = ((position.y % scaledCellSize) + scaledCellSize) % scaledCellSize;
+  // Convert to local coordinates first
+  const localX = gridX * cellSize;
+  const localY = gridY * cellSize;
 
-  // Convert to screen coordinates
-  const screenX = gridX * scaledCellSize - offsetX;
-  const screenY = gridY * scaledCellSize - offsetY;
+  // Apply container transformation: scale then translate
+  const screenX = localX * scale + position.x;
+  const screenY = localY * scale + position.y;
 
   return { x: screenX, y: screenY };
 }
@@ -55,18 +57,20 @@ export function getVisibleGridBounds(
 ): { minX: number; maxX: number; minY: number; maxY: number } {
   const { scale, position, size } = gridState;
   const { width, height } = viewportState;
-  const scaledCellSize = size * scale;
+  const cellSize = size; // Use base cell size
 
-  // Calculate the offset to align with grid positioning
-  const offsetX = ((position.x % scaledCellSize) + scaledCellSize) % scaledCellSize;
-  const offsetY = ((position.y % scaledCellSize) + scaledCellSize) % scaledCellSize;
+  // Transform viewport bounds to local grid coordinates
+  const localMinX = (0 - position.x) / scale;
+  const localMaxX = (width - position.x) / scale;
+  const localMinY = (0 - position.y) / scale;
+  const localMaxY = (height - position.y) / scale;
 
-  // Calculate visible bounds with some padding
+  // Calculate grid bounds with padding
   const padding = 2;
-  const minX = Math.floor((0 - offsetX) / scaledCellSize) - padding;
-  const maxX = Math.ceil((width - offsetX) / scaledCellSize) + padding;
-  const minY = Math.floor((0 - offsetY) / scaledCellSize) - padding;
-  const maxY = Math.ceil((height - offsetY) / scaledCellSize) + padding;
+  const minX = Math.floor(localMinX / cellSize) - padding;
+  const maxX = Math.ceil(localMaxX / cellSize) + padding;
+  const minY = Math.floor(localMinY / cellSize) - padding;
+  const maxY = Math.ceil(localMaxY / cellSize) + padding;
 
   return { minX, maxX, minY, maxY };
 }
