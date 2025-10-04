@@ -31,7 +31,6 @@ interface SimulationStore extends SimulationState {
 const initialGridState: GridState = {
   size: 50,
   scale: 1,
-  resolution: 1,
   position: { x: 0, y: 0 },
   showGridLines: false,
 };
@@ -142,7 +141,6 @@ export const useSimulationStore = create<SimulationStore>()(
         grid: {
           size: state.grid.size,
           scale: state.grid.scale,
-          resolution: state.grid.resolution,
           position: state.grid.position,
           showGridLines: state.grid.showGridLines,
         },

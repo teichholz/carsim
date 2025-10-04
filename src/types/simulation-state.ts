@@ -1,8 +1,19 @@
 export interface GridState {
+  /**
+   * The size of one quadrant (square)
+   */
   size: number;
+  /**
+   * The scale of the grid
+   */
   scale: number;
-  resolution: number;
+  /**
+   * The position of the grid
+   */
   position: { x: number; y: number };
+  /**
+   * Whether to show the grid lines
+   */
   showGridLines: boolean;
 }
 

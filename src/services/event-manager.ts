@@ -90,8 +90,6 @@ class EventManager {
       zoomFactor,
       pointer.x,
       pointer.y,
-      0.1, // minScale
-      3.0  // maxScale
     );
 
     // Update grid transform in store
