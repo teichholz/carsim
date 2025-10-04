@@ -1,6 +1,7 @@
 "use client";
 
 import { useGridState, useSelectedQuadrant } from "@/hooks/useSimulationState";
+import { getVisibleWorldBounds, gridToWorld } from "@/utils/coordinate-conversion";
 import { Application, extend } from "@pixi/react";
 import type * as PIXI from "pixi.js";
 import { Container, Graphics } from "pixi.js";
@@ -36,28 +37,20 @@ export default function EquilateralGrid({
 
       if (!showGridLines) return;
 
-      const { scale, position } = grid;
+      const { scale } = grid;
       const strokeWidth = Math.max(0.5, Math.min(2, scale));
       const opacity = 0.2;
 
       graphics.setStrokeStyle({ width: strokeWidth, color: 0x6b7280, alpha: opacity });
 
-      // Calculate the visible area in world coordinates
-      const visibleWidth = width / scale;
-      const visibleHeight = height / scale;
-
-      // Calculate the world position of the top-left corner of the viewport
-      const worldLeft = -position.x / scale;
-      const worldTop = -position.y / scale;
-      const worldRight = worldLeft + visibleWidth;
-      const worldBottom = worldTop + visibleHeight;
-
-      // Calculate grid bounds with some padding for smooth scrolling
-      const padding = cellSize * 2; // Extra padding to ensure smooth transitions
-      const startX = Math.floor((worldLeft - padding) / cellSize) * cellSize;
-      const endX = Math.ceil((worldRight + padding) / cellSize) * cellSize;
-      const startY = Math.floor((worldTop - padding) / cellSize) * cellSize;
-      const endY = Math.ceil((worldBottom + padding) / cellSize) * cellSize;
+      // Use the helper function to calculate visible world bounds
+      const viewportState = { width, height, devicePixelRatio: 1 };
+      const { startX, endX, startY, endY } = getVisibleWorldBounds(
+        grid,
+        viewportState,
+        cellSize,
+        2 // padding multiplier
+      );
 
       // Draw vertical lines
       for (let x = startX; x <= endX; x += cellSize) {
@@ -83,9 +76,12 @@ export default function EquilateralGrid({
 
       if (!selectedQuadrant) return;
 
-      // Convert grid coordinates to world coordinates
-      const worldX = selectedQuadrant.x * cellSize;
-      const worldY = selectedQuadrant.y * cellSize;
+      // Use the helper function to convert grid coordinates to world coordinates
+      const { x: worldX, y: worldY } = gridToWorld(
+        selectedQuadrant.x,
+        selectedQuadrant.y,
+        cellSize
+      );
 
       graphics.setFillStyle({ color: 0x3b82f6, alpha: 0.1 });
       graphics.roundRect(worldX, worldY, cellSize, cellSize, 5);

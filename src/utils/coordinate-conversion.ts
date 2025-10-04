@@ -206,3 +206,51 @@ export function getGridCellsInRadius(
 
   return cells;
 }
+
+/**
+ * Convert grid coordinates to world coordinates (local coordinates within the transformed container)
+ * This is used for rendering within a transformed PIXI container
+ */
+export function gridToWorld(
+  gridX: number,
+  gridY: number,
+  cellSize: number
+): { x: number; y: number } {
+  return {
+    x: gridX * cellSize,
+    y: gridY * cellSize,
+  };
+}
+
+/**
+ * Calculate visible world bounds for grid rendering
+ * Returns world coordinates that can be used directly in a transformed container
+ */
+export function getVisibleWorldBounds(
+  gridState: GridState,
+  viewportState: ViewportState,
+  cellSize: number,
+  padding: number = 2
+): { startX: number; endX: number; startY: number; endY: number } {
+  const { scale, position } = gridState;
+  const { width, height } = viewportState;
+
+  // Calculate the visible area in world coordinates
+  const visibleWidth = width / scale;
+  const visibleHeight = height / scale;
+
+  // Calculate the world position of the top-left corner of the viewport
+  const worldLeft = -position.x / scale;
+  const worldTop = -position.y / scale;
+  const worldRight = worldLeft + visibleWidth;
+  const worldBottom = worldTop + visibleHeight;
+
+  // Calculate grid bounds with padding for smooth scrolling
+  const paddingSize = cellSize * padding;
+  const startX = Math.floor((worldLeft - paddingSize) / cellSize) * cellSize;
+  const endX = Math.ceil((worldRight + paddingSize) / cellSize) * cellSize;
+  const startY = Math.floor((worldTop - paddingSize) / cellSize) * cellSize;
+  const endY = Math.ceil((worldBottom + paddingSize) / cellSize) * cellSize;
+
+  return { startX, endX, startY, endY };
+}
