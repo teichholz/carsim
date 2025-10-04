@@ -1,3 +1,5 @@
+import type { PlacedBuildingBlock } from './building-blocks';
+
 export interface GridState {
   /**
    * The size of one quadrant (square)
@@ -36,6 +38,7 @@ export interface SimulationState {
   selectedQuadrant: SelectedQuadrant | null;
   isSimulationRunning: boolean;
   simulationSpeed: number;
+  buildingBlocks: Map<string, PlacedBuildingBlock>;
 }
 
 export interface GridCell {

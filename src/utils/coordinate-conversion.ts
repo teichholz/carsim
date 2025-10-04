@@ -223,6 +223,21 @@ export function gridToWorld(
 }
 
 /**
+ * Convert world coordinates to grid coordinates
+ * This is used for converting PIXI world coordinates back to grid coordinates
+ */
+export function worldToGrid(
+  worldX: number,
+  worldY: number,
+  cellSize: number
+): { x: number; y: number } {
+  return {
+    x: Math.floor(worldX / cellSize),
+    y: Math.floor(worldY / cellSize),
+  };
+}
+
+/**
  * Calculate visible world bounds for grid rendering
  * Returns world coordinates that can be used directly in a transformed container
  */

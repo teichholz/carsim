@@ -4,6 +4,7 @@ import EquilateralGrid from "@/components/EquilateralGrid";
 import HighlightedCell from "@/components/HighlightedCell";
 import FloatingPanel from "@/components/FloatingPanel";
 import Inventory from "@/components/Inventory";
+import BuildingBlocksLayer from "@/components/building-blocks/BuildingBlocksLayer";
 import {
   useGridState,
   useViewportState,
@@ -12,9 +13,12 @@ import {
 } from "@/hooks/useSimulationState";
 import { Application, extend } from "@pixi/react";
 import { Container } from "pixi.js";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import type { BuildingBlock } from "@/types/building-blocks";
 import { installEventHandling } from "@/services/event-manager";
+import { useSimulationStore } from "@/store/simulation-store";
+import { createStreetBlock } from "@/utils/street-utils";
+import { screenToGrid } from "@/utils/coordinate-conversion";
 
 // Extend PIXI components to make them available as JSX
 extend({ Container });
@@ -22,7 +26,7 @@ extend({ Container });
 export default function Home() {
   // Get state from global store
   const { grid, setGridSize, setShowGridLines } = useGridState();
-  const { viewport, setViewportSize } = useViewportState();
+  const { viewport } = useViewportState();
   const {
     isSimulationRunning,
     simulationSpeed,
@@ -30,29 +34,67 @@ export default function Home() {
     setSimulationSpeed,
   } = useSimulationState();
   const { selectedQuadrant } = useSelectedQuadrant();
+  const { addBuildingBlock, buildingBlocks } = useSimulationStore();
 
   // Local state for building block selection
   const [selectedBlock, setSelectedBlock] = useState<BuildingBlock | null>(
     null,
   );
 
-  useEffect(() => {
-    installEventHandling();
-  }, []);
+  // Handle building block placement
+  const handleCellClick = useCallback((gridX: number, gridY: number) => {
+    if (!selectedBlock) return;
 
-  // Update viewport size on mount and resize
+    // Check if there's already a building block at this position
+    const key = `${gridX},${gridY}`;
+    if (buildingBlocks.has(key)) {
+      // Remove existing block
+      useSimulationStore.getState().removeBuildingBlock(gridX, gridY);
+      return;
+    }
+
+    // Create new building block based on type
+    if (selectedBlock.type === 'street_horizontal') {
+      const streetBlock = createStreetBlock(
+        `street-${Date.now()}`,
+        gridX,
+        gridY,
+        buildingBlocks
+      );
+      addBuildingBlock(streetBlock);
+    }
+  }, [selectedBlock, buildingBlocks, addBuildingBlock]);
+
+  // Install event handling once on mount
+  useEffect(installEventHandling, []);
+
+  // Handle building block placement clicks
   useEffect(() => {
-    const updateViewportSize = () => {
-      setViewportSize({
-        width: window.innerWidth,
-        height: window.innerHeight,
-      });
+    const handleBuildingBlockClick = (e: CustomEvent) => {
+      if (!selectedBlock) return;
+
+      const { x: screenX, y: screenY } = e.detail;
+
+      // Convert screen coordinates to grid coordinates
+      const { x: gridX, y: gridY } = screenToGrid(
+        screenX,
+        screenY,
+        grid,
+        viewport
+      );
+
+      handleCellClick(gridX, gridY);
     };
 
-    updateViewportSize();
-    window.addEventListener("resize", updateViewportSize);
-    return () => window.removeEventListener("resize", updateViewportSize);
-  }, [setViewportSize]);
+    window.addEventListener('buildingBlockClick', handleBuildingBlockClick as EventListener);
+
+    return () => {
+      window.removeEventListener('buildingBlockClick', handleBuildingBlockClick as EventListener);
+    };
+  }, [selectedBlock, grid, viewport, handleCellClick]);
+
+
+  // Viewport size is now handled by the event manager
 
   // Don't render until viewport size is available
   if (viewport.width === 0 || viewport.height === 0) {
@@ -90,6 +132,9 @@ export default function Home() {
 
             {/* Highlighted grid layer */}
             <HighlightedCell cellSize={grid.size} />
+
+            {/* Building blocks layer */}
+            <BuildingBlocksLayer cellSize={grid.size} />
           </pixiContainer>
         </Application>
 

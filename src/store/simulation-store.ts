@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { GridState, ViewportState, SelectedQuadrant, SimulationState, GridCell, GridTransform } from '@/types/simulation-state';
+import type { PlacedBuildingBlock } from '@/types/building-blocks';
 
 interface SimulationStore extends SimulationState {
   // Grid actions
@@ -22,6 +23,11 @@ interface SimulationStore extends SimulationState {
   // Simulation actions
   setSimulationRunning: (running: boolean) => void;
   setSimulationSpeed: (speed: number) => void;
+
+  // Building blocks actions
+  addBuildingBlock: (block: PlacedBuildingBlock) => void;
+  removeBuildingBlock: (gridX: number, gridY: number) => void;
+  getBuildingBlock: (gridX: number, gridY: number) => PlacedBuildingBlock | undefined;
 
   // Combined actions
   resetGrid: () => void;
@@ -47,6 +53,7 @@ const initialSimulationState: SimulationState = {
   selectedQuadrant: null,
   isSimulationRunning: false,
   simulationSpeed: 1,
+  buildingBlocks: new Map(),
 };
 
 export const useSimulationStore = create<SimulationStore>()(
@@ -121,6 +128,28 @@ export const useSimulationStore = create<SimulationStore>()(
       setSimulationSpeed: (speed: number) =>
         set({ simulationSpeed: speed }),
 
+      // Building blocks actions
+      addBuildingBlock: (block: PlacedBuildingBlock) =>
+        set((state) => {
+          const key = `${block.gridX},${block.gridY}`;
+          const newMap = new Map(state.buildingBlocks);
+          newMap.set(key, block);
+          return { buildingBlocks: newMap };
+        }),
+
+      removeBuildingBlock: (gridX: number, gridY: number) =>
+        set((state) => {
+          const key = `${gridX},${gridY}`;
+          const newMap = new Map(state.buildingBlocks);
+          newMap.delete(key);
+          return { buildingBlocks: newMap };
+        }),
+
+      getBuildingBlock: (gridX: number, gridY: number): PlacedBuildingBlock | undefined => {
+        const key = `${gridX},${gridY}`;
+        return useSimulationStore.getState().buildingBlocks.get(key);
+      },
+
       // Combined actions
       resetGrid: () =>
         set(() => ({
@@ -132,6 +161,7 @@ export const useSimulationStore = create<SimulationStore>()(
         set(() => ({
           isSimulationRunning: false,
           simulationSpeed: 1,
+          buildingBlocks: new Map(),
         })),
     }),
     {

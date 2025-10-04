@@ -164,7 +164,22 @@ class EventManager {
       // Only reset hover if not panning
       const state = useSimulationStore.getState();
       state.updateHoveredCell(null);
+
+      // Handle building block placement
+      this.handleBuildingBlockPlacement(e);
     }
+  }
+
+  /**
+   * Handle building block placement
+   */
+  private handleBuildingBlockPlacement(e: MouseEvent) {
+    // This will be called from the main page when a building block is selected
+    // For now, we'll just pass the click event
+    const event = new CustomEvent('buildingBlockClick', {
+      detail: { x: e.clientX, y: e.clientY }
+    });
+    window.dispatchEvent(event);
   }
 
   /**
