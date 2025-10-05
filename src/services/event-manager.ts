@@ -2,10 +2,22 @@ import { useSimulationStore } from '@/store/simulation-store';
 import {
   getGridCellFromScreen,
   calculateZoomTransform,
-  calculatePanTransform
+  calculatePanTransform,
+  screenToGrid
 } from '@/utils/coordinate-conversion';
 import type { PointerPosition } from '@/types/simulation-state';
+import { useEffect, useCallback } from 'react';
+import type { BuildingBlock } from '@/types/building-blocks';
 
+// Event constants
+const BUILDING_BLOCK_CLICK = 'BuildingBlockClick';
+
+interface BuildingBlockClickEvent extends CustomEvent {
+  detail: {
+    x: number;
+    y: number;
+  };
+}
 class EventManager {
   private isInitialized = false;
   private isDragging = false;
@@ -174,11 +186,13 @@ class EventManager {
    * Handle building block placement
    */
   private handleBuildingBlockPlacement(e: MouseEvent) {
-    // This will be called from the main page when a building block is selected
-    // For now, we'll just pass the click event
-    const event = new CustomEvent('buildingBlockClick', {
-      detail: { x: e.clientX, y: e.clientY }
+    const event = new CustomEvent(BUILDING_BLOCK_CLICK, {
+      detail: {
+        x: e.clientX,
+        y: e.clientY
+      }
     });
+
     window.dispatchEvent(event);
   }
 
@@ -226,4 +240,40 @@ class EventManager {
 export const installEventHandling = () => {
   const eventManager = new EventManager();
   return () => eventManager.cleanup();
+};
+
+/**
+ * Custom hook for handling building block click events
+ * @param selectedBlock - The currently selected building block
+ * @param onCellClick - Callback function to handle cell clicks
+ */
+export const useBuildingBlockClick = (
+  selectedBlock: BuildingBlock | null,
+  onCellClick: (gridX: number, gridY: number) => void
+) => {
+  const { grid, viewport } = useSimulationStore();
+
+  const handleBuildingBlockClick = useCallback((e: BuildingBlockClickEvent) => {
+    if (!selectedBlock) return;
+
+    const { x: screenX, y: screenY } = e.detail;
+
+    // Convert screen coordinates to grid coordinates
+    const { x: gridX, y: gridY } = screenToGrid(
+      screenX,
+      screenY,
+      grid,
+      viewport
+    );
+
+    onCellClick(gridX, gridY);
+  }, [selectedBlock, grid, viewport, onCellClick]);
+
+  useEffect(() => {
+    window.addEventListener(BUILDING_BLOCK_CLICK, handleBuildingBlockClick as EventListener);
+
+    return () => {
+      window.removeEventListener(BUILDING_BLOCK_CLICK, handleBuildingBlockClick as EventListener);
+    };
+  }, [handleBuildingBlockClick]);
 };

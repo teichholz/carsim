@@ -21,4 +21,5 @@ The Building Blocks are:
     - Horizontal street
     - Vertical street
     - Curved street (4 each)
+How the street is connected, can change when more streets are placed. Each street needs to be able to react to that, whenn a new street is placed.
 For now the street should be represented by 2 straight or curved lines, which almost fully fill out the quadrant they are in.

@@ -82,3 +82,17 @@ export const useAllSimulationState = () => {
     simulationSpeed,
   };
 };
+
+export const useBuildingBlocksState = () => {
+  const buildingBlocks = useSimulationStore((state) => state.buildingBlocks);
+  const addBuildingBlock = useSimulationStore((state) => state.addBuildingBlock);
+  const removeBuildingBlock = useSimulationStore((state) => state.removeBuildingBlock);
+  const getBuildingBlock = useSimulationStore((state) => state.getBuildingBlock);
+
+  return {
+    buildingBlocks,
+    addBuildingBlock,
+    removeBuildingBlock,
+    getBuildingBlock,
+  };
+};

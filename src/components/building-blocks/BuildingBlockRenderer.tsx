@@ -18,8 +18,6 @@ const BuildingBlockRenderer: React.FC<BuildingBlockRendererProps> = ({
   const props: BuildingBlockComponentProps = {
     block,
     gridSize,
-    gridX: block.gridX,
-    gridY: block.gridY,
     scale,
   };
 
@@ -38,12 +36,7 @@ const BuildingBlockRenderer: React.FC<BuildingBlockRendererProps> = ({
 
 // Helper function to check if a building block type is a street
 const isStreetType = (type: BuildingBlockType): boolean => {
-  return [
-    BuildingBlockType.STREET_HORIZONTAL,
-    BuildingBlockType.STREET_VERTICAL,
-    BuildingBlockType.STREET_CURVE,
-    BuildingBlockType.STREET_LONELY,
-  ].includes(type);
+  return type === BuildingBlockType.STREET;
 };
 
 export default BuildingBlockRenderer;

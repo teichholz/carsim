@@ -15,10 +15,10 @@ import { Application, extend } from "@pixi/react";
 import { Container } from "pixi.js";
 import { useEffect, useState, useCallback } from "react";
 import type { BuildingBlock } from "@/types/building-blocks";
-import { installEventHandling } from "@/services/event-manager";
+import { BuildingBlockType } from "@/types/building-blocks";
+import { installEventHandling, useBuildingBlockClick } from "@/services/event-manager";
 import { useSimulationStore } from "@/store/simulation-store";
 import { createStreetBlock } from "@/utils/street-utils";
-import { screenToGrid } from "@/utils/coordinate-conversion";
 
 // Extend PIXI components to make them available as JSX
 extend({ Container });
@@ -34,7 +34,7 @@ export default function Home() {
     setSimulationSpeed,
   } = useSimulationState();
   const { selectedQuadrant } = useSelectedQuadrant();
-  const { addBuildingBlock, buildingBlocks } = useSimulationStore();
+  const { addBuildingBlock, buildingBlocks, updateStreetConnections } = useSimulationStore();
 
   // Local state for building block selection
   const [selectedBlock, setSelectedBlock] = useState<BuildingBlock | null>(
@@ -50,11 +50,14 @@ export default function Home() {
     if (buildingBlocks.has(key)) {
       // Remove existing block
       useSimulationStore.getState().removeBuildingBlock(gridX, gridY);
+
+      // Update connections for surrounding streets that might have lost a connection
+      updateStreetConnections(gridX, gridY);
       return;
     }
 
     // Create new building block based on type
-    if (selectedBlock.type === 'street_horizontal') {
+    if (selectedBlock.type === BuildingBlockType.STREET) {
       const streetBlock = createStreetBlock(
         `street-${Date.now()}`,
         gridX,
@@ -62,36 +65,17 @@ export default function Home() {
         buildingBlocks
       );
       addBuildingBlock(streetBlock);
+
+      // Update connections for existing streets that might now be connected
+      updateStreetConnections(gridX, gridY);
     }
-  }, [selectedBlock, buildingBlocks, addBuildingBlock]);
+  }, [selectedBlock, buildingBlocks, addBuildingBlock, updateStreetConnections]);
 
   // Install event handling once on mount
   useEffect(installEventHandling, []);
 
-  // Handle building block placement clicks
-  useEffect(() => {
-    const handleBuildingBlockClick = (e: CustomEvent) => {
-      if (!selectedBlock) return;
-
-      const { x: screenX, y: screenY } = e.detail;
-
-      // Convert screen coordinates to grid coordinates
-      const { x: gridX, y: gridY } = screenToGrid(
-        screenX,
-        screenY,
-        grid,
-        viewport
-      );
-
-      handleCellClick(gridX, gridY);
-    };
-
-    window.addEventListener('buildingBlockClick', handleBuildingBlockClick as EventListener);
-
-    return () => {
-      window.removeEventListener('buildingBlockClick', handleBuildingBlockClick as EventListener);
-    };
-  }, [selectedBlock, grid, viewport, handleCellClick]);
+  // Handle building block placement clicks using custom hook
+  useBuildingBlockClick(selectedBlock, handleCellClick);
 
 
   // Viewport size is now handled by the event manager

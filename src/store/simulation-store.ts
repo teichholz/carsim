@@ -28,6 +28,7 @@ interface SimulationStore extends SimulationState {
   addBuildingBlock: (block: PlacedBuildingBlock) => void;
   removeBuildingBlock: (gridX: number, gridY: number) => void;
   getBuildingBlock: (gridX: number, gridY: number) => PlacedBuildingBlock | undefined;
+  updateStreetConnections: (gridX: number, gridY: number) => void;
 
   // Combined actions
   resetGrid: () => void;
@@ -149,6 +150,14 @@ export const useSimulationStore = create<SimulationStore>()(
         const key = `${gridX},${gridY}`;
         return useSimulationStore.getState().buildingBlocks.get(key);
       },
+
+      updateStreetConnections: (gridX: number, gridY: number) =>
+        set((state) => {
+          // Import the function dynamically to avoid circular dependency
+          const { updateStreetConnections } = require('@/utils/street-utils');
+          const updatedMap = updateStreetConnections(gridX, gridY, state.buildingBlocks);
+          return { buildingBlocks: updatedMap };
+        }),
 
       // Combined actions
       resetGrid: () =>

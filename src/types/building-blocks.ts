@@ -18,19 +18,8 @@ export interface PlacedBuildingBlock {
 
 // Street-specific interfaces
 export interface StreetBlock extends PlacedBuildingBlock {
-  type: BuildingBlockType.STREET_HORIZONTAL | BuildingBlockType.STREET_VERTICAL | BuildingBlockType.STREET_CURVE | BuildingBlockType.STREET_LONELY;
-  streetType: StreetType;
+  type: BuildingBlockType.STREET;
   connections: StreetConnections;
-}
-
-export enum StreetType {
-  LONELY = 'lonely',
-  HORIZONTAL = 'horizontal',
-  VERTICAL = 'vertical',
-  CURVE_TOP_LEFT = 'curve_top_left',
-  CURVE_TOP_RIGHT = 'curve_top_right',
-  CURVE_BOTTOM_LEFT = 'curve_bottom_left',
-  CURVE_BOTTOM_RIGHT = 'curve_bottom_right',
 }
 
 export interface StreetConnections {
@@ -41,10 +30,10 @@ export interface StreetConnections {
 }
 
 export enum BuildingBlockType {
-  STREET_HORIZONTAL = 'street_horizontal',
-  STREET_VERTICAL = 'street_vertical',
-  STREET_CURVE = 'street_curve',
-  STREET_LONELY = 'street_lonely',
+  // Street type - single unified type
+  STREET = 'street',
+
+  // Other building block types
   ROUNDABOUT = 'roundabout',
   SPEED_LIMIT = 'speed_limit',
   CAR_GENERATOR = 'car_generator',
@@ -56,7 +45,7 @@ export const BUILDING_BLOCKS: BuildingBlock[] = [
   {
     id: 'street',
     name: 'Street',
-    type: BuildingBlockType.STREET_HORIZONTAL,
+    type: BuildingBlockType.STREET,
     icon: '🛣️',
     description: 'Road segment that adapts to connections',
   },

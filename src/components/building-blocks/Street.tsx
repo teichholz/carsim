@@ -5,7 +5,7 @@ import { extend } from '@pixi/react';
 import type * as PIXI from 'pixi.js';
 import type { BuildingBlockComponentProps } from './BaseBuildingBlock';
 import type { StreetBlock } from '@/types/building-blocks';
-import { StreetType } from '@/types/building-blocks';
+import { determineStreetVisualType, StreetVisualType } from '@/utils/street-utils';
 
 // Extend PIXI components to make them available as JSX
 extend({ Graphics });
@@ -15,7 +15,8 @@ export interface StreetProps extends BuildingBlockComponentProps {
 }
 
 const Street: React.FC<StreetProps> = ({ block, gridSize }) => {
-  const streetType = block.streetType;
+  // Introspect the street's connections to determine visual representation
+  const visualType = determineStreetVisualType(block.connections);
 
   // Street line properties
   const lineWidth = Math.max(2, gridSize * 0.08);
@@ -23,7 +24,7 @@ const Street: React.FC<StreetProps> = ({ block, gridSize }) => {
 
   const drawStreet = useCallback((graphics: PIXI.Graphics) => {
     graphics.clear();
-    graphics.lineStyle(lineWidth, 0x333333, 1);
+    graphics.setStrokeStyle({ width: lineWidth, color: 0x333333, alpha: 1 });
 
     const renderLonelyStreet = () => {
       // Lonely street is smaller and vertical by default
@@ -38,6 +39,8 @@ const Street: React.FC<StreetProps> = ({ block, gridSize }) => {
 
       graphics.moveTo(centerX + halfWidth, centerY - halfWidth);
       graphics.lineTo(centerX + halfWidth, centerY + halfWidth);
+
+      graphics.stroke();
     };
 
     const renderHorizontalStreet = () => {
@@ -47,6 +50,8 @@ const Street: React.FC<StreetProps> = ({ block, gridSize }) => {
 
       graphics.moveTo(margin, gridSize / 2 + lineWidth);
       graphics.lineTo(gridSize - margin, gridSize / 2 + lineWidth);
+
+      graphics.stroke();
     };
 
     const renderVerticalStreet = () => {
@@ -56,37 +61,84 @@ const Street: React.FC<StreetProps> = ({ block, gridSize }) => {
 
       graphics.moveTo(gridSize / 2 + lineWidth, margin);
       graphics.lineTo(gridSize / 2 + lineWidth, gridSize - margin);
+
+      graphics.stroke();
     };
 
-    const renderCurvedStreet = () => {
-      // For now, render as straight lines - curves can be enhanced later with proper arc rendering
-      graphics.moveTo(margin, gridSize / 2 - lineWidth);
-      graphics.lineTo(gridSize - margin, gridSize / 2 - lineWidth);
+    const renderCurvedStreet = (curveType: StreetVisualType) => {
+      const centerX = gridSize / 2;
+      const centerY = gridSize / 2;
+      const radius = Math.min(gridSize * 0.3, gridSize - margin * 2) / 2;
+      const streetWidth = lineWidth * 2;
 
-      graphics.moveTo(gridSize / 2 - lineWidth, margin);
-      graphics.lineTo(gridSize / 2 - lineWidth, gridSize - margin);
+      // Draw curved street based on the curve type
+      // Each curve has two parallel arcs representing the street edges
+      switch (curveType) {
+        case StreetVisualType.CURVE_TOP_LEFT:
+          // Curve from top to left - draw outer arc first
+          graphics.moveTo(centerX, centerY - radius);
+          graphics.arc(centerX, centerY, radius, -Math.PI / 2, 0, false);
+          graphics.stroke();
+          // Then draw inner arc
+          graphics.moveTo(centerX, centerY - radius + streetWidth);
+          graphics.arc(centerX, centerY, radius - streetWidth, -Math.PI / 2, 0, false);
+          graphics.stroke();
+          break;
+        case StreetVisualType.CURVE_TOP_RIGHT:
+          // Curve from top to right - draw outer arc first
+          graphics.moveTo(centerX, centerY - radius);
+          graphics.arc(centerX, centerY, radius, Math.PI / 2, Math.PI, false);
+          graphics.stroke();
+          // Then draw inner arc
+          graphics.moveTo(centerX, centerY - radius + streetWidth);
+          graphics.arc(centerX, centerY, radius - streetWidth, Math.PI / 2, Math.PI, false);
+          graphics.stroke();
+          break;
+        case StreetVisualType.CURVE_BOTTOM_LEFT:
+          // Curve from bottom to left - draw outer arc first
+          graphics.moveTo(centerX, centerY + radius);
+          graphics.arc(centerX, centerY, radius, Math.PI, Math.PI * 1.5, false);
+          graphics.stroke();
+          // Then draw inner arc
+          graphics.moveTo(centerX, centerY + radius - streetWidth);
+          graphics.arc(centerX, centerY, radius - streetWidth, Math.PI, Math.PI * 1.5, false);
+          graphics.stroke();
+          break;
+        case StreetVisualType.CURVE_BOTTOM_RIGHT:
+          // Curve from bottom to right - draw outer arc first
+          graphics.moveTo(centerX, centerY + radius);
+          graphics.arc(centerX, centerY, radius, Math.PI * 1.5, Math.PI * 2, false);
+          graphics.stroke();
+          // Then draw inner arc
+          graphics.moveTo(centerX, centerY + radius - streetWidth);
+          graphics.arc(centerX, centerY, radius - streetWidth, Math.PI * 1.5, Math.PI * 2, false);
+          graphics.stroke();
+          break;
+      }
     };
 
-    switch (streetType) {
-      case StreetType.LONELY:
+    switch (visualType) {
+      case StreetVisualType.LONELY:
         renderLonelyStreet();
         break;
-      case StreetType.HORIZONTAL:
+      case StreetVisualType.HORIZONTAL:
         renderHorizontalStreet();
         break;
-      case StreetType.VERTICAL:
+      case StreetVisualType.VERTICAL:
         renderVerticalStreet();
         break;
-      case StreetType.CURVE_TOP_LEFT:
-      case StreetType.CURVE_TOP_RIGHT:
-      case StreetType.CURVE_BOTTOM_LEFT:
-      case StreetType.CURVE_BOTTOM_RIGHT:
-        renderCurvedStreet();
+      case StreetVisualType.CURVE_TOP_LEFT:
+      case StreetVisualType.CURVE_TOP_RIGHT:
+      case StreetVisualType.CURVE_BOTTOM_LEFT:
+      case StreetVisualType.CURVE_BOTTOM_RIGHT:
+        renderCurvedStreet(visualType);
         break;
       default:
         renderLonelyStreet();
     }
-  }, [streetType, gridSize, lineWidth, margin]);
+
+    // All render functions now handle their own stroking
+  }, [visualType, gridSize, lineWidth, margin]);
 
   return <pixiGraphics draw={drawStreet} />;
 };
