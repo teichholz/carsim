@@ -16,9 +16,15 @@ import { Container } from "pixi.js";
 import { useEffect, useState, useCallback } from "react";
 import type { BuildingBlock } from "@/types/building-blocks";
 import { BuildingBlockType } from "@/types/building-blocks";
-import { installEventHandling, useBuildingBlockClick } from "@/services/event-manager";
+import {
+  installEventHandling,
+  useBuildingBlockClick,
+  useBuildingBlockDrag,
+} from "@/services/event-manager";
 import { useSimulationStore } from "@/store/simulation-store";
 import { createStreetBlock } from "@/utils/street-utils";
+import { screenToGrid } from "@/utils/coordinate-conversion";
+import type { PointerPosition } from "@/types/simulation-state";
 
 // Extend PIXI components to make them available as JSX
 extend({ Container });
@@ -34,7 +40,8 @@ export default function Home() {
     setSimulationSpeed,
   } = useSimulationState();
   const { selectedQuadrant } = useSelectedQuadrant();
-  const { addBuildingBlock, buildingBlocks, updateStreetConnections } = useSimulationStore();
+  const { addBuildingBlock, buildingBlocks, updateStreetConnections } =
+    useSimulationStore();
 
   // Local state for building block selection
   const [selectedBlock, setSelectedBlock] = useState<BuildingBlock | null>(
@@ -42,34 +49,57 @@ export default function Home() {
   );
 
   // Handle building block placement
-  const handleCellClick = useCallback((gridX: number, gridY: number) => {
-    if (!selectedBlock) return;
+  const handleCellClick = useCallback(
+    (gridX: number, gridY: number) => {
+      if (!selectedBlock) return;
 
-    // Check if there's already a building block at this position
-    const key = `${gridX},${gridY}`;
-    if (buildingBlocks.has(key)) {
-      // Remove existing block
-      useSimulationStore.getState().removeBuildingBlock(gridX, gridY);
+      // Check if there's already a building block at this position
+      const key = `${gridX},${gridY}`;
+      if (buildingBlocks.has(key)) {
+        // Remove existing block
+        useSimulationStore.getState().removeBuildingBlock(gridX, gridY);
 
-      // Update connections for surrounding streets that might have lost a connection
-      updateStreetConnections(gridX, gridY);
-      return;
-    }
+        // Update connections for surrounding streets that might have lost a connection
+        updateStreetConnections(gridX, gridY);
+        return;
+      }
 
-    // Create new building block based on type
-    if (selectedBlock.type === BuildingBlockType.STREET) {
-      const streetBlock = createStreetBlock(
-        `street-${Date.now()}`,
-        gridX,
-        gridY,
-        buildingBlocks
+      // Create new building block based on type
+      if (selectedBlock.type === BuildingBlockType.STREET) {
+        const streetBlock = createStreetBlock(
+          `street-${Date.now()}`,
+          gridX,
+          gridY,
+          buildingBlocks,
+        );
+        addBuildingBlock(streetBlock);
+
+        // Update connections for existing streets that might now be connected
+        updateStreetConnections(gridX, gridY);
+      }
+    },
+    [selectedBlock, buildingBlocks, addBuildingBlock, updateStreetConnections],
+  );
+
+  // Handle drag events for continuous placement
+  const handleDragPath = useCallback(
+    (path: PointerPosition[]) => {
+      if (!selectedBlock) return;
+
+      const newestPoint = path.slice(-1)[0];
+      // Convert screen coordinates to grid coordinates
+      const { x: gridX, y: gridY } = screenToGrid(
+        newestPoint.x,
+        newestPoint.y,
+        grid,
+        viewport,
       );
-      addBuildingBlock(streetBlock);
 
-      // Update connections for existing streets that might now be connected
-      updateStreetConnections(gridX, gridY);
-    }
-  }, [selectedBlock, buildingBlocks, addBuildingBlock, updateStreetConnections]);
+      // Place building block at this cell
+      handleCellClick(gridX, gridY);
+    },
+    [selectedBlock, grid, viewport, handleCellClick],
+  );
 
   // Install event handling once on mount
   useEffect(installEventHandling, []);
@@ -77,6 +107,8 @@ export default function Home() {
   // Handle building block placement clicks using custom hook
   useBuildingBlockClick(selectedBlock, handleCellClick);
 
+  // Handle drag events using custom hook
+  useBuildingBlockDrag(selectedBlock, handleDragPath);
 
   // Viewport size is now handled by the event manager
 

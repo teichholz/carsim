@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { GridState, ViewportState, SelectedQuadrant, SimulationState, GridCell, GridTransform } from '@/types/simulation-state';
-import type { PlacedBuildingBlock } from '@/types/building-blocks';
+import type { PlacedBuildingBlock, BuildingBlock } from '@/types/building-blocks';
 
 interface SimulationStore extends SimulationState {
   // Grid actions
