@@ -13,6 +13,8 @@
     "@pixi/events": "^7.4.3",
     "@pixi/react": "^8.0.3",
     "bitecs": "^0.3.40",
+    "framer-motion": "^12.23.22",
+    "motion": "^12.23.22",
     "next": "15.5.4",
     "pixi.js": "^8.13.2",
     "react": "19.1.0",

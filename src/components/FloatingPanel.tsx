@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useRef, useEffect, useState } from "react";
+import { motion, useDragControls } from "framer-motion";
+import type { PanInfo } from "framer-motion";
 import { usePersistentState } from "@/hooks/usePersistentState";
 
 interface FloatingPanelProps {
@@ -16,127 +17,94 @@ export default function FloatingPanel({
   initialPosition = { x: 20, y: 20 },
   className = "",
 }: FloatingPanelProps) {
-  // Use the persistent state hook - much cleaner!
   const [position, setPosition] = usePersistentState(
-`${title}-position`,
+    `${title}-position`,
     initialPosition
   );
 
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-  const [isCollapsed, setIsCollapsed] = usePersistentState(`${title}-collapsed`, false);
-  const panelRef = useRef<HTMLDivElement>(null);
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    // Don't start dragging if clicking on the collapse button
-    if ((e.target as HTMLElement).closest('button')) {
-      return;
-    }
-
-    if (
-      e.target === e.currentTarget ||
-      (e.target as HTMLElement).closest(".drag-handle")
-    ) {
-      setIsDragging(true);
-      const rect = panelRef.current?.getBoundingClientRect();
-      if (rect) {
-        setDragOffset({
-          x: e.clientX - rect.left,
-          y: e.clientY - rect.top,
-        });
-      }
-    }
-  };
-
-  const handleMouseMove = useCallback(
-    (e: MouseEvent) => {
-      if (isDragging) {
-        const newX = e.clientX - dragOffset.x;
-        const newY = e.clientY - dragOffset.y;
-
-        // Keep panel within viewport bounds
-        const maxX = window.innerWidth - (panelRef.current?.offsetWidth || 300);
-        const maxY =
-          window.innerHeight - (panelRef.current?.offsetHeight || 200);
-
-        const newPosition = {
-          x: Math.max(0, Math.min(newX, maxX)),
-          y: Math.max(0, Math.min(newY, maxY)),
-        };
-
-        // Just call setPosition - persistence is automatic!
-        setPosition(newPosition);
-      }
-    },
-    [isDragging, dragOffset, setPosition],
+  const [isCollapsed, setIsCollapsed] = usePersistentState(
+    `${title}-collapsed`,
+    false
   );
 
-  const handleMouseUp = useCallback(() => {
-    setIsDragging(false);
-  }, []);
+  const dragControls = useDragControls();
 
-  // Add global mouse event listeners when dragging
-  useEffect(() => {
-    if (isDragging) {
-      const handleGlobalMouseMove = (e: MouseEvent) => handleMouseMove(e);
-      const handleGlobalMouseUp = () => handleMouseUp();
+  const handleDragEnd = (_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    // Calculate the final position and persist it
+    const newPosition = {
+      x: position.x + info.offset.x,
+      y: position.y + info.offset.y,
+    };
 
-      document.addEventListener("mousemove", handleGlobalMouseMove);
-      document.addEventListener("mouseup", handleGlobalMouseUp);
-      return () => {
-        document.removeEventListener("mousemove", handleGlobalMouseMove);
-        document.removeEventListener("mouseup", handleGlobalMouseUp);
-      };
-    }
-  }, [isDragging, handleMouseMove, handleMouseUp]);
+    // Keep panel within viewport bounds
+    const maxX = window.innerWidth - 280;
+    const maxY = window.innerHeight - 200;
+
+    setPosition({
+      x: Math.max(0, Math.min(newPosition.x, maxX)),
+      y: Math.max(0, Math.min(newPosition.y, maxY)),
+    });
+  };
 
   return (
-    <div
-      ref={panelRef}
-      className={`fixed bg-white rounded-lg border select-none z-10 ${
-        isDragging
-          ? 'shadow-2xl border-blue-300 scale-105'
-          : 'shadow-lg border-gray-200'
-      } ${className}`}
+    <motion.div
+      key={`${position.x}-${position.y}`}
+      drag
+      dragControls={dragControls}
+      dragListener={false}
+      dragElastic={0}
+      dragMomentum={false}
+      onDragEnd={handleDragEnd}
+      whileDrag={{
+        scale: 1.02,
+        boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
+      }}
+      className={`fixed bg-white rounded-lg border border-gray-200 select-none z-10 shadow-lg ${className}`}
       style={{
         left: position.x,
         top: position.y,
-        cursor: isDragging ? "grabbing" : "grab",
         minWidth: "280px",
-        transform: isDragging ? 'scale(1.02)' : 'scale(1)',
+        touchAction: "none",
       }}
-      onMouseDown={handleMouseDown}
       role="dialog"
       aria-label={title}
     >
       {/* Header with drag handle */}
-      <div className={`drag-handle flex items-center justify-between p-4 border-b border-gray-200 transition-colors duration-200 ${
-        isDragging
-          ? 'bg-blue-50 border-blue-200'
-          : 'hover:bg-gray-50'
-      }`}>
+      <motion.div
+        className="drag-handle flex items-center justify-between p-4 border-b border-gray-200 cursor-grab active:cursor-grabbing"
+        onPointerDown={(e) => {
+          // Don't start dragging if clicking on the collapse button
+          if ((e.target as HTMLElement).closest("button")) {
+            return;
+          }
+          dragControls.start(e);
+        }}
+        whileHover={{
+          backgroundColor: "rgb(249, 250, 251)",
+        }}
+        transition={{ duration: 0.2 }}
+      >
         <div className="flex items-center gap-2">
-          <div className="flex flex-col gap-1">
-            <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
-            <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
-            <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
-          </div>
           <h3 className="text-lg font-semibold text-gray-800">{title}</h3>
         </div>
         <div className="flex items-center gap-2">
-          <button
+          <motion.button
             type="button"
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className="p-1 hover:bg-gray-100 rounded transition-colors"
+            className="p-1 hover:bg-gray-100 rounded"
             title={isCollapsed ? "Expand" : "Collapse"}
             aria-label={isCollapsed ? "Expand panel" : "Collapse panel"}
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.95 }}
           >
-            <svg
-              className={`w-4 h-4 text-gray-600 transition-transform ${isCollapsed ? "rotate-180" : ""}`}
+            <motion.svg
+              className="w-4 h-4 text-gray-600"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
               aria-hidden="true"
+              animate={{ rotate: isCollapsed ? 180 : 0 }}
+              transition={{ duration: 0.3 }}
             >
               <path
                 strokeLinecap="round"
@@ -144,13 +112,26 @@ export default function FloatingPanel({
                 strokeWidth={2}
                 d="M19 9l-7 7-7-7"
               />
-            </svg>
-          </button>
+            </motion.svg>
+          </motion.button>
         </div>
-      </div>
+      </motion.div>
 
       {/* Content */}
-      {!isCollapsed && <div className="p-4">{children}</div>}
-    </div>
+      <motion.div
+        initial={false}
+        animate={{
+          height: isCollapsed ? 0 : "auto",
+          opacity: isCollapsed ? 0 : 1,
+        }}
+        transition={{
+          height: { duration: 0.3, ease: "easeInOut" },
+          opacity: { duration: 0.2, delay: isCollapsed ? 0 : 0.1 },
+        }}
+        style={{ overflow: "hidden" }}
+      >
+        <div className="p-4">{children}</div>
+      </motion.div>
+    </motion.div>
   );
 }
