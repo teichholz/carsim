@@ -8,19 +8,16 @@ import type { BuildingBlockComponentProps } from './BaseBuildingBlock';
 export interface BuildingBlockRendererProps {
   block: PlacedBuildingBlock;
   gridSize: number;
-  scale: number;
 }
 
 const BuildingBlockRenderer: React.FC<BuildingBlockRendererProps> = memo(({
   block,
-  gridSize,
-  scale
+  gridSize
 }) => {
   console.log(`🔄 BuildingBlockRenderer render: ${block.type} at (${block.gridX},${block.gridY})`);
   const props: BuildingBlockComponentProps = {
     block,
     gridSize,
-    scale,
   };
 
   const renderBuildingBlock = () => {

@@ -3,7 +3,6 @@ import type { PlacedBuildingBlock } from '@/types/building-blocks';
 export interface BaseBuildingBlockProps {
   block: PlacedBuildingBlock;
   gridSize: number;
-  scale: number;
 }
 
 export interface BuildingBlockComponentProps extends BaseBuildingBlockProps {
