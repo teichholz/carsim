@@ -18,10 +18,11 @@ import type { BuildingBlock } from "@/types/building-blocks";
 import { BuildingBlockType } from "@/types/building-blocks";
 import {
   installEventHandling,
-  useBuildingBlockClick,
+  addBuildingBlockClickListener,
 } from "@/services/event-manager";
 import { useSimulationStore } from "@/store/simulation-store";
 import { createStreetBlock } from "@/utils/street-utils";
+import { screenToGrid } from "@/utils/coordinate-conversion";
 
 // Extend PIXI components to make them available as JSX
 extend({ Container });
@@ -81,8 +82,24 @@ export default function Home() {
   // Install event handling once on mount
   useEffect(installEventHandling, []);
 
-  // Handle building block placement clicks using custom hook
-  useBuildingBlockClick(selectedBlock, handleCellClick);
+  // Handle building block placement clicks
+  useEffect(() => {
+    const cleanup = addBuildingBlockClickListener((screenX, screenY) => {
+      if (!selectedBlock) return;
+
+      // Convert screen coordinates to grid coordinates
+      const { x: gridX, y: gridY } = screenToGrid(
+        screenX,
+        screenY,
+        grid,
+        viewport
+      );
+
+      handleCellClick(gridX, gridY);
+    });
+
+    return cleanup;
+  }, [selectedBlock, grid, viewport, handleCellClick]);
 
   // Viewport size is now handled by the event manager
 

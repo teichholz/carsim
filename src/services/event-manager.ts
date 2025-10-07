@@ -2,12 +2,9 @@ import { useSimulationStore } from '@/store/simulation-store';
 import {
   getGridCellFromScreen,
   calculateZoomTransform,
-  calculatePanTransform,
-  screenToGrid
+  calculatePanTransform
 } from '@/utils/coordinate-conversion';
 import type { PointerPosition } from '@/types/simulation-state';
-import { useEffect, useCallback } from 'react';
-import type { BuildingBlock } from '@/types/building-blocks';
 
 // Event constants
 const BUILDING_BLOCK_CLICK = 'BuildingBlockClick';
@@ -278,37 +275,21 @@ export const installEventHandling = () => {
 };
 
 /**
- * Custom hook for handling building block click events
- * @param selectedBlock - The currently selected building block
- * @param onCellClick - Callback function to handle cell clicks
+ * Add a listener for building block click events
+ * @param handler - Callback function to handle clicks with screen coordinates
+ * @returns Cleanup function to remove the listener
  */
-export const useBuildingBlockClick = (
-  selectedBlock: BuildingBlock | null,
-  onCellClick: (gridX: number, gridY: number) => void
+export const addBuildingBlockClickListener = (
+  handler: (screenX: number, screenY: number) => void
 ) => {
-  const { grid, viewport } = useSimulationStore();
+  const listener = (e: Event) => {
+    const customEvent = e as BuildingBlockClickEvent;
+    handler(customEvent.detail.x, customEvent.detail.y);
+  };
 
-  const handleBuildingBlockClick = useCallback((e: BuildingBlockClickEvent) => {
-    if (!selectedBlock) return;
+  window.addEventListener(BUILDING_BLOCK_CLICK, listener);
 
-    const { x: screenX, y: screenY } = e.detail;
-
-    // Convert screen coordinates to grid coordinates
-    const { x: gridX, y: gridY } = screenToGrid(
-      screenX,
-      screenY,
-      grid,
-      viewport
-    );
-
-    onCellClick(gridX, gridY);
-  }, [selectedBlock, grid, viewport, onCellClick]);
-
-  useEffect(() => {
-    window.addEventListener(BUILDING_BLOCK_CLICK, handleBuildingBlockClick as EventListener);
-
-    return () => {
-      window.removeEventListener(BUILDING_BLOCK_CLICK, handleBuildingBlockClick as EventListener);
-    };
-  }, [handleBuildingBlockClick]);
+  return () => {
+    window.removeEventListener(BUILDING_BLOCK_CLICK, listener);
+  };
 };
