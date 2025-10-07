@@ -19,12 +19,9 @@ import { BuildingBlockType } from "@/types/building-blocks";
 import {
   installEventHandling,
   useBuildingBlockClick,
-  useBuildingBlockDrag,
 } from "@/services/event-manager";
 import { useSimulationStore } from "@/store/simulation-store";
 import { createStreetBlock } from "@/utils/street-utils";
-import { screenToGrid } from "@/utils/coordinate-conversion";
-import type { PointerPosition } from "@/types/simulation-state";
 
 // Extend PIXI components to make them available as JSX
 extend({ Container });
@@ -81,34 +78,11 @@ export default function Home() {
     [selectedBlock, buildingBlocks, addBuildingBlock, updateStreetConnections],
   );
 
-  // Handle drag events for continuous placement
-  const handleDragPath = useCallback(
-    (path: PointerPosition[]) => {
-      if (!selectedBlock) return;
-
-      const newestPoint = path.slice(-1)[0];
-      // Convert screen coordinates to grid coordinates
-      const { x: gridX, y: gridY } = screenToGrid(
-        newestPoint.x,
-        newestPoint.y,
-        grid,
-        viewport,
-      );
-
-      // Place building block at this cell
-      handleCellClick(gridX, gridY);
-    },
-    [selectedBlock, grid, viewport, handleCellClick],
-  );
-
   // Install event handling once on mount
   useEffect(installEventHandling, []);
 
   // Handle building block placement clicks using custom hook
   useBuildingBlockClick(selectedBlock, handleCellClick);
-
-  // Handle drag events using custom hook
-  useBuildingBlockDrag(selectedBlock, handleDragPath);
 
   // Viewport size is now handled by the event manager
 

@@ -1,4 +1,5 @@
 import type React from 'react';
+import { memo } from 'react';
 import Street from './Street';
 import { BuildingBlockType } from '@/types/building-blocks';
 import type { PlacedBuildingBlock, StreetBlock } from '@/types/building-blocks';
@@ -10,11 +11,12 @@ export interface BuildingBlockRendererProps {
   scale: number;
 }
 
-const BuildingBlockRenderer: React.FC<BuildingBlockRendererProps> = ({
+const BuildingBlockRenderer: React.FC<BuildingBlockRendererProps> = memo(({
   block,
   gridSize,
   scale
 }) => {
+  console.log(`🔄 BuildingBlockRenderer render: ${block.type} at (${block.gridX},${block.gridY})`);
   const props: BuildingBlockComponentProps = {
     block,
     gridSize,
@@ -32,7 +34,7 @@ const BuildingBlockRenderer: React.FC<BuildingBlockRendererProps> = ({
   };
 
   return renderBuildingBlock();
-};
+});
 
 // Helper function to check if a building block type is a street
 const isStreetType = (type: BuildingBlockType): boolean => {

@@ -5,6 +5,7 @@ import { extend } from '@pixi/react';
 import { Container } from 'pixi.js';
 import type React from 'react';
 import BuildingBlockRenderer from './BuildingBlockRenderer';
+import { useMemo } from 'react';
 
 // Extend PIXI components to make them available as JSX
 extend({ Container });
@@ -14,33 +15,38 @@ interface BuildingBlocksLayerProps {
 }
 
 const BuildingBlocksLayer: React.FC<BuildingBlocksLayerProps> = ({ cellSize }) => {
+  console.log('🔄 BuildingBlocksLayer render');
+
   const { grid } = useGridState();
   const { viewport } = useViewportState();
   const { buildingBlocks } = useBuildingBlocksState();
 
-  // Calculate visible world bounds
-  const { startX, endX, startY, endY } = getVisibleWorldBounds(
-    grid,
-    viewport,
-    cellSize,
-  );
+  // Memoize visible world bounds calculation
+  const visibleBounds = useMemo(() => {
+    return getVisibleWorldBounds(grid, viewport, cellSize);
+  }, [grid, viewport, cellSize]);
 
-  // Filter building blocks that are visible
-  const visibleBlocks: PlacedBuildingBlock[] = [];
+  // Memoize visible blocks filtering
+  const visibleBlocks = useMemo(() => {
+    const { startX, endX, startY, endY } = visibleBounds;
+    const blocks: PlacedBuildingBlock[] = [];
 
-  for (const block of buildingBlocks.values()) {
-    const worldX = block.gridX * cellSize;
-    const worldY = block.gridY * cellSize;
+    for (const block of buildingBlocks.values()) {
+      const worldX = block.gridX * cellSize;
+      const worldY = block.gridY * cellSize;
 
-    if (
-      worldX >= startX &&
-      worldX <= endX &&
-      worldY >= startY &&
-      worldY <= endY
-    ) {
-      visibleBlocks.push(block);
+      if (
+        worldX >= startX &&
+        worldX <= endX &&
+        worldY >= startY &&
+        worldY <= endY
+      ) {
+        blocks.push(block);
+      }
     }
-  }
+
+    return blocks;
+  }, [buildingBlocks, visibleBounds, cellSize]);
 
   return (
     <pixiContainer>

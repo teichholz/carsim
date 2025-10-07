@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, memo } from 'react';
 import type React from 'react';
 import { Graphics } from 'pixi.js';
 import { extend } from '@pixi/react';
@@ -14,7 +14,9 @@ export interface StreetProps extends BuildingBlockComponentProps {
   block: StreetBlock;
 }
 
-const Street: React.FC<StreetProps> = ({ block, gridSize }) => {
+const Street: React.FC<StreetProps> = memo(({ block, gridSize }) => {
+  console.log(`🔄 Street render: (${block.gridX},${block.gridY}) connections:`, block.connections);
+
   // Introspect the street's connections to determine visual representation
   const visualType = determineStreetVisualType(block.connections);
 
@@ -141,6 +143,6 @@ const Street: React.FC<StreetProps> = ({ block, gridSize }) => {
   }, [visualType, gridSize, lineWidth, margin]);
 
   return <pixiGraphics draw={drawStreet} />;
-};
+});
 
 export default Street;

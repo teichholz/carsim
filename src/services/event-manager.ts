@@ -11,7 +11,6 @@ import type { BuildingBlock } from '@/types/building-blocks';
 
 // Event constants
 const BUILDING_BLOCK_CLICK = 'BuildingBlockClick';
-const BUILDING_BLOCK_DRAG = 'BuildingBlockDrag';
 
 interface BuildingBlockClickEvent extends CustomEvent {
   detail: {
@@ -19,22 +18,12 @@ interface BuildingBlockClickEvent extends CustomEvent {
     y: number;
   };
 }
-
-interface BuildingBlockDragEvent extends CustomEvent {
-  detail: {
-    path: PointerPosition[];
-    isActive: boolean;
-  };
-}
 class EventManager {
   private isInitialized = false;
   private isDragging = false;
   private isDragPlacing = false;
   private lastPointerPosition: PointerPosition = { x: 0, y: 0 };
-  private dragPath: PointerPosition[] = [];
   private lastProcessedGridCell: { x: number; y: number } | null = null;
-  private initialGridCell: { x: number; y: number } | null = null;
-  private hasMovedToDifferentCell = false;
   private debounceTimer: NodeJS.Timeout | null = null;
 
   // Event handler references
@@ -78,10 +67,7 @@ class EventManager {
 
     this.isDragging = false;
     this.isDragPlacing = false;
-    this.dragPath = [];
     this.lastProcessedGridCell = null;
-    this.initialGridCell = null;
-    this.hasMovedToDifferentCell = false;
 
     if (this.debounceTimer) {
       clearTimeout(this.debounceTimer);
@@ -148,10 +134,8 @@ class EventManager {
       state.updateGridTransform(newTransform);
     }
 
-    // Handle drag placement
+    // Handle drag placement - emit click event for each new grid cell entered
     if (this.isDragPlacing && !e.ctrlKey) {
-      // Calculate current grid cell
-      const state = useSimulationStore.getState();
       const gridCell = getGridCellFromScreen(
         pointer.x,
         pointer.y,
@@ -159,13 +143,7 @@ class EventManager {
         state.viewport
       );
 
-      // Check if we've moved to a different cell than the initial cell
-      if (gridCell && this.initialGridCell &&
-          (gridCell.x !== this.initialGridCell.x || gridCell.y !== this.initialGridCell.y)) {
-        this.hasMovedToDifferentCell = true;
-      }
-
-      // Only emit drag event if we've moved to a different grid cell
+      // Only emit click event if we've moved to a different grid cell
       if (gridCell && (!this.lastProcessedGridCell ||
           this.lastProcessedGridCell.x !== gridCell.x ||
           this.lastProcessedGridCell.y !== gridCell.y)) {
@@ -173,22 +151,16 @@ class EventManager {
         // Update last processed grid cell
         this.lastProcessedGridCell = { x: gridCell.x, y: gridCell.y };
 
-        // Add current position to drag path
-        this.dragPath.push(pointer);
-
-        // Only emit drag event if we've moved to a different cell
-        if (this.hasMovedToDifferentCell) {
-          const event = new CustomEvent(BUILDING_BLOCK_DRAG, {
-            detail: {
-              path: [...this.dragPath],
-              isActive: true
-            }
-          });
-          window.dispatchEvent(event);
-        }
+        // Emit click event for this cell
+        const event = new CustomEvent(BUILDING_BLOCK_CLICK, {
+          detail: {
+            x: pointer.x,
+            y: pointer.y
+          }
+        });
+        window.dispatchEvent(event);
       }
     }
-
 
     this.lastPointerPosition = pointer;
 
@@ -219,23 +191,11 @@ class EventManager {
       const pointer = this.getViewportPointerPosition(e);
       this.lastPointerPosition = pointer;
     } else {
-      // Start potential drag placement mode
+      // Start drag placement mode
       this.isDragPlacing = true;
       const pointer = this.getViewportPointerPosition(e);
       this.lastPointerPosition = pointer;
-      this.dragPath = [pointer];
       this.lastProcessedGridCell = null;
-      this.hasMovedToDifferentCell = false;
-
-      // Calculate initial grid cell
-      const state = useSimulationStore.getState();
-      const gridCell = getGridCellFromScreen(
-        pointer.x,
-        pointer.y,
-        state.grid,
-        state.viewport
-      );
-      this.initialGridCell = gridCell;
     }
   }
 
@@ -244,17 +204,8 @@ class EventManager {
    */
   private handleMouseUp() {
     if (this.isDragPlacing) {
-      if (this.hasMovedToDifferentCell) {
-        // This was a drag - emit final drag event
-        const event = new CustomEvent(BUILDING_BLOCK_DRAG, {
-          detail: {
-            path: [...this.dragPath],
-            isActive: false
-          }
-        });
-        window.dispatchEvent(event);
-      } else {
-        // This was a click - emit click event
+      // If no cell was processed during drag, this was a simple click
+      if (this.lastProcessedGridCell === null) {
         const event = new CustomEvent(BUILDING_BLOCK_CLICK, {
           detail: {
             x: this.lastPointerPosition.x,
@@ -263,12 +214,10 @@ class EventManager {
         });
         window.dispatchEvent(event);
       }
+      // Otherwise, cells were already clicked during the drag
 
       this.isDragPlacing = false;
-      this.dragPath = [];
       this.lastProcessedGridCell = null;
-      this.initialGridCell = null;
-      this.hasMovedToDifferentCell = false;
     }
     this.isDragging = false;
   }
@@ -362,35 +311,4 @@ export const useBuildingBlockClick = (
       window.removeEventListener(BUILDING_BLOCK_CLICK, handleBuildingBlockClick as EventListener);
     };
   }, [handleBuildingBlockClick]);
-};
-
-/**
- * Custom hook for handling building block drag events
- * @param selectedBlock - The currently selected building block
- * @param onDragPath - Callback function to handle drag paths
- */
-export const useBuildingBlockDrag = (
-  selectedBlock: BuildingBlock | null,
-  onDragPath: (path: PointerPosition[]) => void
-) => {
-
-  const handleBuildingBlockDrag = useCallback((e: BuildingBlockDragEvent) => {
-    if (!selectedBlock) return;
-
-    const { path } = e.detail;
-    onDragPath(path);
-  }, [selectedBlock, onDragPath]);
-
-  useEffect(() => {
-    window.addEventListener(BUILDING_BLOCK_DRAG, handleBuildingBlockDrag as EventListener);
-
-    return () => {
-      window.removeEventListener(BUILDING_BLOCK_DRAG, handleBuildingBlockDrag as EventListener);
-    };
-  }, [handleBuildingBlockDrag]);
-};
-
-// Export event constants
-export {
-  BUILDING_BLOCK_DRAG
 };
