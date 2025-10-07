@@ -19,6 +19,7 @@ class EventManager {
   private isInitialized = false;
   private isDragging = false;
   private isDragPlacing = false;
+  private isSpacePressed = false;
   private lastPointerPosition: PointerPosition = { x: 0, y: 0 };
   private lastProcessedGridCell: { x: number; y: number } | null = null;
   private debounceTimer: NodeJS.Timeout | null = null;
@@ -30,6 +31,8 @@ class EventManager {
   private mouseUpHandler: ((e: MouseEvent) => void);
   private clickHandler: ((e: MouseEvent) => void);
   private resizeHandler: ((e: UIEvent) => void);
+  private keyDownHandler: ((e: KeyboardEvent) => void);
+  private keyUpHandler: ((e: KeyboardEvent) => void);
 
   constructor() {
     this.wheelHandler = this.handleWheel.bind(this);
@@ -38,6 +41,8 @@ class EventManager {
     this.mouseUpHandler = this.handleMouseUp.bind(this);
     this.clickHandler = this.handleClick.bind(this);
     this.resizeHandler = this.handleResize.bind(this);
+    this.keyDownHandler = this.handleKeyDown.bind(this);
+    this.keyUpHandler = this.handleKeyUp.bind(this);
 
     window.addEventListener('wheel', this.wheelHandler, { passive: false });
     window.addEventListener('mousemove', this.mouseMoveHandler);
@@ -45,6 +50,8 @@ class EventManager {
     window.addEventListener('mouseup', this.mouseUpHandler);
     window.addEventListener('click', this.clickHandler);
     window.addEventListener('resize', this.resizeHandler);
+    window.addEventListener('keydown', this.keyDownHandler);
+    window.addEventListener('keyup', this.keyUpHandler);
 
     // Initialize viewport size
     this.updateViewportSize();
@@ -61,10 +68,16 @@ class EventManager {
     window.removeEventListener('mouseup', this.mouseUpHandler);
     window.removeEventListener('click', this.clickHandler);
     window.removeEventListener('resize', this.resizeHandler);
+    window.removeEventListener('keydown', this.keyDownHandler);
+    window.removeEventListener('keyup', this.keyUpHandler);
 
     this.isDragging = false;
     this.isDragPlacing = false;
+    this.isSpacePressed = false;
     this.lastProcessedGridCell = null;
+
+    // Reset cursor
+    document.body.style.cursor = '';
 
     if (this.debounceTimer) {
       clearTimeout(this.debounceTimer);
@@ -116,8 +129,8 @@ class EventManager {
     const state = useSimulationStore.getState();
     const pointer = this.getViewportPointerPosition(e);
 
-    // Handle panning when Ctrl is held and dragging
-    if (this.isDragging && e.ctrlKey) {
+    // Handle panning when Space is held and dragging
+    if (this.isDragging && this.isSpacePressed) {
       const deltaX = pointer.x - this.lastPointerPosition.x;
       const deltaY = pointer.y - this.lastPointerPosition.y;
 
@@ -132,7 +145,7 @@ class EventManager {
     }
 
     // Handle drag placement - emit click event for each new grid cell entered
-    if (this.isDragPlacing && !e.ctrlKey) {
+    if (this.isDragPlacing && !this.isSpacePressed) {
       const gridCell = getGridCellFromScreen(
         pointer.x,
         pointer.y,
@@ -183,10 +196,11 @@ class EventManager {
    * Handle mouse down events
    */
   private handleMouseDown(e: MouseEvent) {
-    if (e.ctrlKey) {
+    if (this.isSpacePressed) {
       this.isDragging = true;
       const pointer = this.getViewportPointerPosition(e);
       this.lastPointerPosition = pointer;
+      this.updateCursor();
     } else {
       // Start drag placement mode
       this.isDragPlacing = true;
@@ -216,7 +230,10 @@ class EventManager {
       this.isDragPlacing = false;
       this.lastProcessedGridCell = null;
     }
-    this.isDragging = false;
+    if (this.isDragging) {
+      this.isDragging = false;
+      this.updateCursor();
+    }
   }
 
   /**
@@ -227,6 +244,39 @@ class EventManager {
     // This method is kept for compatibility but does nothing
   }
 
+  /**
+   * Handle key down events
+   */
+  private handleKeyDown(e: KeyboardEvent) {
+    if (e.code === 'Space' && !this.isSpacePressed) {
+      e.preventDefault(); // Prevent default space behavior (scrolling)
+      this.isSpacePressed = true;
+      this.updateCursor();
+    }
+  }
+
+  /**
+   * Handle key up events
+   */
+  private handleKeyUp(e: KeyboardEvent) {
+    if (e.code === 'Space') {
+      this.isSpacePressed = false;
+      this.updateCursor();
+    }
+  }
+
+  /**
+   * Update cursor based on current state
+   */
+  private updateCursor() {
+    if (this.isSpacePressed && this.isDragging) {
+      document.body.style.cursor = 'grabbing';
+    } else if (this.isSpacePressed) {
+      document.body.style.cursor = 'grab';
+    } else {
+      document.body.style.cursor = '';
+    }
+  }
 
   /**
    * Handle window resize events
