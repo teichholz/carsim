@@ -104,7 +104,7 @@ export function calculateZoomTransform(
   zoomFactor: number,
   centerX: number,
   centerY: number,
-  minScale: number = 0.5,
+  minScale: number = 0.01,
   maxScale: number = 3.0
 ): GridTransform {
   const newScale = Math.max(minScale, Math.min(maxScale, currentTransform.scale * zoomFactor));

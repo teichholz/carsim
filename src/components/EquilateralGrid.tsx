@@ -14,20 +14,26 @@ interface EquilateralGridProps {
   width: number;
   height: number;
   cellSize?: number;
+  hideGridAfter?: number;
 }
 
 export default function EquilateralGrid({
   width,
   height,
   cellSize = 50,
+  hideGridAfter = 0.45,
 }: EquilateralGridProps) {
   const { grid } = useGridState();
-
 
   // Render the infinite grid
   const renderGridLines = useCallback(
     (graphics: PIXI.Graphics) => {
       graphics.clear();
+
+      // Hide grid when zoomed out beyond scale 0.5
+      if (grid.scale <= hideGridAfter) {
+        return;
+      }
 
       const { scale } = grid;
       const strokeWidth = Math.max(0.5, Math.min(2, scale));
@@ -58,10 +64,8 @@ export default function EquilateralGrid({
 
       graphics.stroke();
     },
-    [grid, cellSize, width, height],
+    [grid, cellSize, width, height, hideGridAfter],
   );
-
-
 
   return <pixiGraphics draw={renderGridLines} />;
 }
