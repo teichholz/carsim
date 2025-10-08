@@ -49,9 +49,8 @@ function AnimatedSphere({ x, y, radius, velocityX, velocityY, color = '#4488ff' 
         scale={{ x: shadowScale, y: shadowScale * 0.5 }}
         draw={(g) => {
           g.clear();
-          g.beginFill(0x000000);
-          g.drawEllipse(0, 0, radius * 0.8, radius * 0.3);
-          g.endFill();
+          g.fill(0x000000);
+          g.ellipse(0, 0, radius * 0.8, radius * 0.3);
         }}
       />
 
@@ -63,8 +62,8 @@ function AnimatedSphere({ x, y, radius, velocityX, velocityY, color = '#4488ff' 
         <pixiGraphics
           draw={(g) => {
             g.clear();
-            g.lineStyle(2, 0x000000, 0.8);
-            g.beginFill(0x000000, 0.8);
+            g.stroke(0x000000);
+            g.fill();
 
             g.moveTo(0, 0);
             g.lineTo(radius * 0.6, 0);
@@ -72,7 +71,7 @@ function AnimatedSphere({ x, y, radius, velocityX, velocityY, color = '#4488ff' 
             g.lineTo(radius * 0.6, 0);
             g.lineTo(radius * 0.5, 4);
 
-            g.endFill();
+            g.fill();
           }}
         />
       </pixiContainer>

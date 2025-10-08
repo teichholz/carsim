@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { GridState, ViewportState, SelectedQuadrant, SimulationState, GridCell, GridTransform } from '@/types/simulation-state';
-import type { PlacedBuildingBlock, BuildingBlock } from '@/types/building-blocks';
+import type { GridState, ViewportState, SelectedQuadrant, SimulationState, GridCell, GridTransform, SelectionRectangle } from '@/types/simulation-state';
+import type { PlacedBuildingBlock } from '@/types/building-blocks';
 
 interface SimulationStore extends SimulationState {
   // Grid actions
@@ -19,6 +19,7 @@ interface SimulationStore extends SimulationState {
   // Selection actions
   setSelectedQuadrant: (quadrant: SelectedQuadrant | null) => void;
   updateHoveredCell: (cell: GridCell | null) => void;
+  setSelectionRectangle: (selection: SelectionRectangle | null) => void;
 
   // Simulation actions
   setSimulationRunning: (running: boolean) => void;
@@ -52,6 +53,7 @@ const initialSimulationState: SimulationState = {
   grid: initialGridState,
   viewport: initialViewportState,
   selectedQuadrant: null,
+  selectionRectangle: null,
   isSimulationRunning: false,
   simulationSpeed: 1,
   buildingBlocks: new Map(),
@@ -121,6 +123,9 @@ export const useSimulationStore = create<SimulationStore>()(
             isActive: true,
           } : null,
         })),
+
+      setSelectionRectangle: (selection: SelectionRectangle | null) =>
+        set({ selectionRectangle: selection }),
 
       // Simulation actions
       setSimulationRunning: (running: boolean) =>

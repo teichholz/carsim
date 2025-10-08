@@ -36,6 +36,7 @@ export interface SimulationState {
   grid: GridState;
   viewport: ViewportState;
   selectedQuadrant: SelectedQuadrant | null;
+  selectionRectangle: SelectionRectangle | null;
   isSimulationRunning: boolean;
   simulationSpeed: number;
   buildingBlocks: Map<string, PlacedBuildingBlock>;
@@ -56,4 +57,11 @@ export interface GridTransform {
   scale: number;
   x: number;
   y: number;
+}
+
+export interface SelectionRectangle {
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
 }

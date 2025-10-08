@@ -5,6 +5,7 @@ import HighlightedCell from "@/components/HighlightedCell";
 import FloatingPanel from "@/components/FloatingPanel";
 import Inventory from "@/components/Inventory";
 import BuildingBlocksLayer from "@/components/building-blocks/BuildingBlocksLayer";
+import SelectionRectangle from "@/components/SelectionRectangle";
 import {
   useGridState,
   useViewportState,
@@ -19,6 +20,7 @@ import { BuildingBlockType } from "@/types/building-blocks";
 import {
   installEventHandling,
   addBuildingBlockClickListener,
+  addSelectionCompleteListener,
 } from "@/services/event-manager";
 import { useSimulationStore } from "@/store/simulation-store";
 import { createStreetBlock } from "@/utils/street-utils";
@@ -126,6 +128,20 @@ export default function Home() {
     return cleanup;
   }, [selectedBlock, grid, viewport, handleCellClick]);
 
+  // Handle selection complete events
+  useEffect(() => {
+    const cleanup = addSelectionCompleteListener((startX, startY, endX, endY) => {
+      // Log selection for debugging - can be replaced with actual selection logic
+      console.log('Selection complete:', { startX, startY, endX, endY });
+
+      // Example: Convert to grid coordinates if needed
+      // const startGrid = screenToGrid(startX, startY, grid, viewport);
+      // const endGrid = screenToGrid(endX, endY, grid, viewport);
+    });
+
+    return cleanup;
+  }, []);
+
   // Viewport size is now handled by the event manager
 
   // Don't render until viewport size is available and assets are loaded
@@ -168,6 +184,9 @@ export default function Home() {
             {/* Building blocks layer */}
             <BuildingBlocksLayer cellSize={grid.size} />
           </pixiContainer>
+
+          {/* Selection rectangle (in screen coordinates, outside transform) */}
+          <SelectionRectangle />
         </Application>
 
         {/* Grid info overlay */}
@@ -183,7 +202,7 @@ export default function Home() {
             </div>
           )}
           <div className="text-xs mt-1 opacity-75">
-            Ctrl + Drag to pan • Scroll to zoom
+            Space + Drag to pan • Scroll to zoom • Ctrl + Drag to select
           </div>
         </div>
       </div>
