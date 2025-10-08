@@ -3,7 +3,6 @@ import type { StreetConnections, StreetBlock, PlacedBuildingBlock } from '@/type
 
 // Visual representation types for streets
 export enum StreetVisualType {
-  LONELY = 'lonely',
   HORIZONTAL = 'horizontal',
   VERTICAL = 'vertical',
   CURVE_TOP_LEFT = 'curve_top_left',
@@ -37,22 +36,6 @@ export const getStreetConnections = (
 
 export const determineStreetVisualType = (connections: StreetConnections): StreetVisualType => {
   const { top, right, bottom, left } = connections;
-  const connectionCount = [top, right, bottom, left].filter(Boolean).length;
-
-  // Lonely street if no connections
-  if (connectionCount === 0) {
-    return StreetVisualType.LONELY;
-  }
-
-  // Horizontal street if only left/right connections
-  if (!top && !bottom && (left || right)) {
-    return StreetVisualType.HORIZONTAL;
-  }
-
-  // Vertical street if only top/bottom connections
-  if (!left && !right && (top || bottom)) {
-    return StreetVisualType.VERTICAL;
-  }
 
   // Determine curve type based on connections
   if (top && left && !right && !bottom) {
@@ -68,8 +51,13 @@ export const determineStreetVisualType = (connections: StreetConnections): Stree
     return StreetVisualType.CURVE_BOTTOM_RIGHT;
   }
 
-  // Default to lonely for complex connections (can be enhanced later)
-  return StreetVisualType.LONELY;
+  // Vertical street if only top/bottom connections
+  if (!left && !right && (top || bottom)) {
+    return StreetVisualType.VERTICAL;
+  }
+
+  // Default to horizontal for all other cases (including no connections)
+  return StreetVisualType.HORIZONTAL;
 };
 
 export const createStreetBlock = (

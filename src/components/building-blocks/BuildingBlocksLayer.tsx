@@ -13,8 +13,6 @@ interface BuildingBlocksLayerProps {
 }
 
 const BuildingBlocksLayer: React.FC<BuildingBlocksLayerProps> = memo(({ cellSize }) => {
-  console.log('🔄 BuildingBlocksLayer render');
-
   const { buildingBlocks } = useBuildingBlocksState();
 
   return (

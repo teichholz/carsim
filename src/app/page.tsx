@@ -12,7 +12,7 @@ import {
   useSelectedQuadrant,
 } from "@/hooks/useSimulationState";
 import { Application, extend } from "@pixi/react";
-import { Container } from "pixi.js";
+import { Container, Assets } from "pixi.js";
 import { useEffect, useState, useCallback } from "react";
 import type { BuildingBlock } from "@/types/building-blocks";
 import { BuildingBlockType } from "@/types/building-blocks";
@@ -45,6 +45,31 @@ export default function Home() {
   const [selectedBlock, setSelectedBlock] = useState<BuildingBlock | null>(
     null,
   );
+
+  // Local state for asset loading
+  const [assetsLoaded, setAssetsLoaded] = useState(false);
+
+  // Preload sprite assets
+  useEffect(() => {
+    const loadAssets = async () => {
+      try {
+        // Add assets to the cache
+        Assets.add({ alias: 'linear-street', src: '/sprites/Linear Street.png' });
+        Assets.add({ alias: 'curved-street', src: '/sprites/Curved Street.png' });
+
+        // Load the assets
+        await Assets.load(['linear-street', 'curved-street']);
+
+        setAssetsLoaded(true);
+      } catch (error) {
+        console.error('Failed to load sprite assets:', error);
+        // Set as loaded anyway to prevent infinite loading
+        setAssetsLoaded(true);
+      }
+    };
+
+    loadAssets();
+  }, []);
 
   // Handle building block placement
   const handleCellClick = useCallback(
@@ -103,8 +128,8 @@ export default function Home() {
 
   // Viewport size is now handled by the event manager
 
-  // Don't render until viewport size is available
-  if (viewport.width === 0 || viewport.height === 0) {
+  // Don't render until viewport size is available and assets are loaded
+  if (viewport.width === 0 || viewport.height === 0 || !assetsLoaded) {
     return (
       <div className="w-full h-screen bg-gray-100 flex items-center justify-center">
         <div className="text-gray-600">Loading...</div>

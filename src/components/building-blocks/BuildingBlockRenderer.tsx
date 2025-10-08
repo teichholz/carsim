@@ -14,7 +14,6 @@ const BuildingBlockRenderer: React.FC<BuildingBlockRendererProps> = memo(({
   block,
   gridSize
 }) => {
-  console.log(`🔄 BuildingBlockRenderer render: ${block.type} at (${block.gridX},${block.gridY})`);
   const props: BuildingBlockComponentProps = {
     block,
     gridSize,
