@@ -40,6 +40,7 @@ export interface SimulationState {
   isSimulationRunning: boolean;
   simulationSpeed: number;
   buildingBlocks: Map<string, PlacedBuildingBlock>;
+  selectedBlocks: Set<string>;
 }
 
 export interface GridCell {

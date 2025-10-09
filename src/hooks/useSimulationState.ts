@@ -96,3 +96,41 @@ export const useBuildingBlocksState = () => {
     getBuildingBlock,
   };
 };
+
+// Block selection state hook
+export const useBlockSelectionState = () => {
+  const selectedBlocks = useSimulationStore((state) => state.selectedBlocks);
+  const selectBlock = useSimulationStore((state) => state.selectBlock);
+  const deselectBlock = useSimulationStore((state) => state.deselectBlock);
+  const clearSelection = useSimulationStore((state) => state.clearSelection);
+  const setSelectedBlocks = useSimulationStore((state) => state.setSelectedBlocks);
+  const toggleBlockSelection = useSimulationStore((state) => state.toggleBlockSelection);
+
+  return {
+    selectedBlocks,
+    selectBlock,
+    deselectBlock,
+    clearSelection,
+    setSelectedBlocks,
+    toggleBlockSelection,
+  };
+};
+
+// History state hook
+export const useHistoryState = () => {
+  const history = useSimulationStore((state) => state.history);
+  const pushOperation = useSimulationStore((state) => state.pushOperation);
+  const undo = useSimulationStore((state) => state.undo);
+  const redo = useSimulationStore((state) => state.redo);
+  const canUndo = useSimulationStore((state) => state.canUndo);
+  const canRedo = useSimulationStore((state) => state.canRedo);
+
+  return {
+    history,
+    pushOperation,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+  };
+};

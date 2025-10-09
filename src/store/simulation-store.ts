@@ -2,8 +2,13 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { GridState, ViewportState, SelectedQuadrant, SimulationState, GridCell, GridTransform, SelectionRectangle } from '@/types/simulation-state';
 import type { PlacedBuildingBlock } from '@/types/building-blocks';
+import type { Operation, HistoryState } from '@/types/history';
+import { OperationType, MAX_HISTORY_SIZE } from '@/types/history';
 
 interface SimulationStore extends SimulationState {
+  // History state
+  history: HistoryState;
+
   // Grid actions
   setGridSize: (size: number) => void;
   setGridScale: (scale: number) => void;
@@ -21,15 +26,30 @@ interface SimulationStore extends SimulationState {
   updateHoveredCell: (cell: GridCell | null) => void;
   setSelectionRectangle: (selection: SelectionRectangle | null) => void;
 
+  // Block selection actions
+  selectBlock: (gridX: number, gridY: number) => void;
+  deselectBlock: (gridX: number, gridY: number) => void;
+  clearSelection: () => void;
+  setSelectedBlocks: (blocks: Set<string>) => void;
+  toggleBlockSelection: (gridX: number, gridY: number) => void;
+
   // Simulation actions
   setSimulationRunning: (running: boolean) => void;
   setSimulationSpeed: (speed: number) => void;
 
   // Building blocks actions
-  addBuildingBlock: (block: PlacedBuildingBlock) => void;
+  addBuildingBlock: (block: PlacedBuildingBlock, recordHistory?: boolean) => void;
   removeBuildingBlock: (gridX: number, gridY: number) => void;
   getBuildingBlock: (gridX: number, gridY: number) => PlacedBuildingBlock | undefined;
   updateStreetConnections: (gridX: number, gridY: number) => void;
+  moveBuildingBlocks: (blocks: Array<{ from: { gridX: number; gridY: number }; to: { gridX: number; gridY: number } }>) => void;
+
+  // History actions
+  pushOperation: (operation: Operation) => void;
+  undo: () => void;
+  redo: () => void;
+  canUndo: () => boolean;
+  canRedo: () => boolean;
 
   // Combined actions
   resetGrid: () => void;
@@ -57,12 +77,19 @@ const initialSimulationState: SimulationState = {
   isSimulationRunning: false,
   simulationSpeed: 1,
   buildingBlocks: new Map(),
+  selectedBlocks: new Set(),
+};
+
+const initialHistoryState: HistoryState = {
+  operations: [],
+  currentIndex: -1,
 };
 
 export const useSimulationStore = create<SimulationStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       ...initialSimulationState,
+      history: initialHistoryState,
 
       // Grid actions
       setGridSize: (size: number) =>
@@ -127,6 +154,41 @@ export const useSimulationStore = create<SimulationStore>()(
       setSelectionRectangle: (selection: SelectionRectangle | null) =>
         set({ selectionRectangle: selection }),
 
+      // Block selection actions
+      selectBlock: (gridX: number, gridY: number) =>
+        set((state) => {
+          const key = `${gridX},${gridY}`;
+          const newSet = new Set(state.selectedBlocks);
+          newSet.add(key);
+          return { selectedBlocks: newSet };
+        }),
+
+      deselectBlock: (gridX: number, gridY: number) =>
+        set((state) => {
+          const key = `${gridX},${gridY}`;
+          const newSet = new Set(state.selectedBlocks);
+          newSet.delete(key);
+          return { selectedBlocks: newSet };
+        }),
+
+      clearSelection: () =>
+        set({ selectedBlocks: new Set() }),
+
+      setSelectedBlocks: (blocks: Set<string>) =>
+        set({ selectedBlocks: new Set(blocks) }),
+
+      toggleBlockSelection: (gridX: number, gridY: number) =>
+        set((state) => {
+          const key = `${gridX},${gridY}`;
+          const newSet = new Set(state.selectedBlocks);
+          if (newSet.has(key)) {
+            newSet.delete(key);
+          } else {
+            newSet.add(key);
+          }
+          return { selectedBlocks: newSet };
+        }),
+
       // Simulation actions
       setSimulationRunning: (running: boolean) =>
         set({ isSimulationRunning: running }),
@@ -135,11 +197,20 @@ export const useSimulationStore = create<SimulationStore>()(
         set({ simulationSpeed: speed }),
 
       // Building blocks actions
-      addBuildingBlock: (block: PlacedBuildingBlock) =>
+      addBuildingBlock: (block: PlacedBuildingBlock, recordHistory = true) =>
         set((state) => {
           const key = `${block.gridX},${block.gridY}`;
           const newMap = new Map(state.buildingBlocks);
           newMap.set(key, block);
+
+          // Record history if requested
+          if (recordHistory) {
+            get().pushOperation({
+              type: OperationType.PLACE,
+              blocks: [block],
+            });
+          }
+
           return { buildingBlocks: newMap };
         }),
 
@@ -164,6 +235,181 @@ export const useSimulationStore = create<SimulationStore>()(
           return { buildingBlocks: updatedMap };
         }),
 
+      moveBuildingBlocks: (blocks: Array<{ from: { gridX: number; gridY: number }; to: { gridX: number; gridY: number } }>) =>
+        set((state) => {
+          const newMap = new Map(state.buildingBlocks);
+          const movedBlocks: PlacedBuildingBlock[] = [];
+          const originalPositions: Array<{ gridX: number; gridY: number }> = [];
+          const newPositions: Array<{ gridX: number; gridY: number }> = [];
+
+          // Move each block
+          for (const { from, to } of blocks) {
+            const fromKey = `${from.gridX},${from.gridY}`;
+            const block = newMap.get(fromKey);
+
+            if (block) {
+              // Remove from old position
+              newMap.delete(fromKey);
+
+              // Add to new position
+              const movedBlock = { ...block, gridX: to.gridX, gridY: to.gridY };
+              const toKey = `${to.gridX},${to.gridY}`;
+              newMap.set(toKey, movedBlock);
+
+              movedBlocks.push(movedBlock);
+              originalPositions.push({ gridX: from.gridX, gridY: from.gridY });
+              newPositions.push({ gridX: to.gridX, gridY: to.gridY });
+            }
+          }
+
+          // Record history
+          if (movedBlocks.length > 0) {
+            get().pushOperation({
+              type: OperationType.MOVE,
+              blocks: movedBlocks,
+              originalPositions,
+              newPositions,
+            });
+          }
+
+          return { buildingBlocks: newMap };
+        }),
+
+      // History actions
+      pushOperation: (operation: Operation) =>
+        set((state) => {
+          const newHistory = { ...state.history };
+
+          // Remove any operations after the current index (for redo)
+          newHistory.operations = newHistory.operations.slice(0, newHistory.currentIndex + 1);
+
+          // Add new operation
+          newHistory.operations.push(operation);
+          newHistory.currentIndex = newHistory.operations.length - 1;
+
+          // Cap history size
+          if (newHistory.operations.length > MAX_HISTORY_SIZE) {
+            newHistory.operations = newHistory.operations.slice(-MAX_HISTORY_SIZE);
+            newHistory.currentIndex = newHistory.operations.length - 1;
+          }
+
+          return { history: newHistory };
+        }),
+
+      undo: () => {
+        const state = get();
+        if (!state.canUndo()) return;
+
+        const operation = state.history.operations[state.history.currentIndex];
+
+        if (operation.type === OperationType.PLACE) {
+          // Undo place: remove the blocks
+          const newMap = new Map(state.buildingBlocks);
+          for (const block of operation.blocks) {
+            const key = `${block.gridX},${block.gridY}`;
+            newMap.delete(key);
+          }
+          set({
+            buildingBlocks: newMap,
+            history: { ...state.history, currentIndex: state.history.currentIndex - 1 }
+          });
+        } else if (operation.type === OperationType.DELETE) {
+          // Undo delete: restore the blocks
+          const newMap = new Map(state.buildingBlocks);
+          for (const block of operation.blocks) {
+            const key = `${block.gridX},${block.gridY}`;
+            newMap.set(key, block);
+          }
+          set({
+            buildingBlocks: newMap,
+            history: { ...state.history, currentIndex: state.history.currentIndex - 1 }
+          });
+        } else if (operation.type === OperationType.MOVE) {
+          // Undo move: restore original positions
+          const newMap = new Map(state.buildingBlocks);
+          for (let i = 0; i < operation.blocks.length; i++) {
+            const block = operation.blocks[i];
+            const originalPos = operation.originalPositions[i];
+            const newPos = operation.newPositions[i];
+
+            // Remove from new position
+            const newKey = `${newPos.gridX},${newPos.gridY}`;
+            newMap.delete(newKey);
+
+            // Restore to original position
+            const restoredBlock = { ...block, gridX: originalPos.gridX, gridY: originalPos.gridY };
+            const originalKey = `${originalPos.gridX},${originalPos.gridY}`;
+            newMap.set(originalKey, restoredBlock);
+          }
+          set({
+            buildingBlocks: newMap,
+            history: { ...state.history, currentIndex: state.history.currentIndex - 1 }
+          });
+        }
+      },
+
+      redo: () => {
+        const state = get();
+        if (!state.canRedo()) return;
+
+        const operation = state.history.operations[state.history.currentIndex + 1];
+
+        if (operation.type === OperationType.PLACE) {
+          // Redo place: add the blocks back
+          const newMap = new Map(state.buildingBlocks);
+          for (const block of operation.blocks) {
+            const key = `${block.gridX},${block.gridY}`;
+            newMap.set(key, block);
+          }
+          set({
+            buildingBlocks: newMap,
+            history: { ...state.history, currentIndex: state.history.currentIndex + 1 }
+          });
+        } else if (operation.type === OperationType.DELETE) {
+          // Redo delete: remove the blocks again
+          const newMap = new Map(state.buildingBlocks);
+          for (const block of operation.blocks) {
+            const key = `${block.gridX},${block.gridY}`;
+            newMap.delete(key);
+          }
+          set({
+            buildingBlocks: newMap,
+            history: { ...state.history, currentIndex: state.history.currentIndex + 1 }
+          });
+        } else if (operation.type === OperationType.MOVE) {
+          // Redo move: apply the move again
+          const newMap = new Map(state.buildingBlocks);
+          for (let i = 0; i < operation.blocks.length; i++) {
+            const block = operation.blocks[i];
+            const originalPos = operation.originalPositions[i];
+            const newPos = operation.newPositions[i];
+
+            // Remove from original position
+            const originalKey = `${originalPos.gridX},${originalPos.gridY}`;
+            newMap.delete(originalKey);
+
+            // Move to new position
+            const movedBlock = { ...block, gridX: newPos.gridX, gridY: newPos.gridY };
+            const newKey = `${newPos.gridX},${newPos.gridY}`;
+            newMap.set(newKey, movedBlock);
+          }
+          set({
+            buildingBlocks: newMap,
+            history: { ...state.history, currentIndex: state.history.currentIndex + 1 }
+          });
+        }
+      },
+
+      canUndo: () => {
+        const state = get();
+        return state.history.currentIndex >= 0;
+      },
+
+      canRedo: () => {
+        const state = get();
+        return state.history.currentIndex < state.history.operations.length - 1;
+      },
+
       // Combined actions
       resetGrid: () =>
         set(() => ({
@@ -176,6 +422,8 @@ export const useSimulationStore = create<SimulationStore>()(
           isSimulationRunning: false,
           simulationSpeed: 1,
           buildingBlocks: new Map(),
+          selectedBlocks: new Set(),
+          history: initialHistoryState,
         })),
     }),
     {

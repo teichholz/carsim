@@ -6,6 +6,7 @@ import FloatingPanel from "@/components/FloatingPanel";
 import Inventory from "@/components/Inventory";
 import BuildingBlocksLayer from "@/components/building-blocks/BuildingBlocksLayer";
 import SelectionRectangle from "@/components/SelectionRectangle";
+import SelectedBlocksLayer from "@/components/SelectedBlocksLayer";
 import {
   useGridState,
   useViewportState,
@@ -21,6 +22,11 @@ import {
   installEventHandling,
   addBuildingBlockClickListener,
   addSelectionCompleteListener,
+  addBlockSelectedListener,
+  addDeleteSelectedBlocksListener,
+  addBlocksMovedListener,
+  addUndoRequestListener,
+  addRedoRequestListener,
 } from "@/services/event-manager";
 import { useSimulationStore } from "@/store/simulation-store";
 import { createStreetBlock } from "@/utils/street-utils";
@@ -128,15 +134,156 @@ export default function Home() {
     return cleanup;
   }, [selectedBlock, grid, viewport, handleCellClick]);
 
-  // Handle selection complete events
+  // Handle selection complete events (rectangle selection)
   useEffect(() => {
     const cleanup = addSelectionCompleteListener((startX, startY, endX, endY) => {
-      // Log selection for debugging - can be replaced with actual selection logic
-      console.log('Selection complete:', { startX, startY, endX, endY });
+      // Convert screen coordinates to grid coordinates
+      const startGrid = screenToGrid(startX, startY, grid, viewport);
+      const endGrid = screenToGrid(endX, endY, grid, viewport);
 
-      // Example: Convert to grid coordinates if needed
-      // const startGrid = screenToGrid(startX, startY, grid, viewport);
-      // const endGrid = screenToGrid(endX, endY, grid, viewport);
+      // Calculate selection bounds
+      const minX = Math.min(startGrid.x, endGrid.x);
+      const maxX = Math.max(startGrid.x, endGrid.x);
+      const minY = Math.min(startGrid.y, endGrid.y);
+      const maxY = Math.max(startGrid.y, endGrid.y);
+
+      // Find all blocks that intersect with the selection rectangle
+      const selectedKeys = new Set<string>();
+      for (const [key, block] of buildingBlocks.entries()) {
+        // Check if block intersects with selection rectangle
+        if (block.gridX >= minX && block.gridX <= maxX &&
+            block.gridY >= minY && block.gridY <= maxY) {
+          selectedKeys.add(key);
+        }
+      }
+
+      // Update selection
+      useSimulationStore.getState().setSelectedBlocks(selectedKeys);
+    });
+
+    return cleanup;
+  }, [grid, viewport, buildingBlocks]);
+
+  // Handle block selection events
+  useEffect(() => {
+    const cleanup = addBlockSelectedListener((gridX, gridY, isShift) => {
+      if (isShift) {
+        // Shift+click: toggle selection
+        useSimulationStore.getState().toggleBlockSelection(gridX, gridY);
+      } else {
+        // Normal click: clear selection and select only this block
+        useSimulationStore.getState().clearSelection();
+        useSimulationStore.getState().selectBlock(gridX, gridY);
+      }
+    });
+
+    return cleanup;
+  }, []);
+
+  // Handle delete selected blocks
+  useEffect(() => {
+    const cleanup = addDeleteSelectedBlocksListener(() => {
+      const state = useSimulationStore.getState();
+      const selectedBlocks = Array.from(state.selectedBlocks);
+
+      if (selectedBlocks.length === 0) return;
+
+      // Collect blocks to delete
+      const blocksToDelete = selectedBlocks
+        .map(key => state.buildingBlocks.get(key))
+        .filter((block): block is NonNullable<typeof block> => block !== undefined);
+
+      if (blocksToDelete.length === 0) return;
+
+      // Push delete operation to history
+      state.pushOperation({
+        type: require('@/types/history').OperationType.DELETE,
+        blocks: blocksToDelete,
+      });
+
+      // Remove blocks
+      for (const block of blocksToDelete) {
+        state.removeBuildingBlock(block.gridX, block.gridY);
+        // Update street connections for surrounding blocks
+        state.updateStreetConnections(block.gridX, block.gridY);
+      }
+
+      // Clear selection
+      state.clearSelection();
+    });
+
+    return cleanup;
+  }, []);
+
+  // Handle blocks moved
+  useEffect(() => {
+    const cleanup = addBlocksMovedListener((offsetX, offsetY) => {
+      const state = useSimulationStore.getState();
+      const selectedBlocks = Array.from(state.selectedBlocks);
+
+      if (selectedBlocks.length === 0 || (offsetX === 0 && offsetY === 0)) return;
+
+      // Validate move: check for collisions
+      const moves: Array<{ from: { gridX: number; gridY: number }; to: { gridX: number; gridY: number } }> = [];
+      const newPositions = new Set<string>();
+
+      for (const key of selectedBlocks) {
+        const block = state.buildingBlocks.get(key);
+        if (!block) continue;
+
+        const newX = block.gridX + offsetX;
+        const newY = block.gridY + offsetY;
+        const newKey = `${newX},${newY}`;
+
+        // Check if new position conflicts with an existing block (that's not being moved)
+        if (state.buildingBlocks.has(newKey) && !selectedBlocks.includes(newKey)) {
+          // Collision detected - abort move
+          console.warn('Cannot move blocks: collision detected');
+          return;
+        }
+
+        newPositions.add(newKey);
+        moves.push({
+          from: { gridX: block.gridX, gridY: block.gridY },
+          to: { gridX: newX, gridY: newY }
+        });
+      }
+
+      // Check for internal collisions (two blocks moving to the same position)
+      if (newPositions.size !== moves.length) {
+        console.warn('Cannot move blocks: internal collision detected');
+        return;
+      }
+
+      // Perform the move
+      state.moveBuildingBlocks(moves);
+
+      // Update selection to reflect new positions
+      state.setSelectedBlocks(newPositions);
+
+      // Update street connections for affected areas
+      for (const move of moves) {
+        state.updateStreetConnections(move.from.gridX, move.from.gridY);
+        state.updateStreetConnections(move.to.gridX, move.to.gridY);
+      }
+    });
+
+    return cleanup;
+  }, []);
+
+  // Handle undo
+  useEffect(() => {
+    const cleanup = addUndoRequestListener(() => {
+      useSimulationStore.getState().undo();
+    });
+
+    return cleanup;
+  }, []);
+
+  // Handle redo
+  useEffect(() => {
+    const cleanup = addRedoRequestListener(() => {
+      useSimulationStore.getState().redo();
     });
 
     return cleanup;
@@ -183,6 +330,9 @@ export default function Home() {
 
             {/* Building blocks layer */}
             <BuildingBlocksLayer cellSize={grid.size} />
+
+            {/* Selected blocks highlight layer */}
+            <SelectedBlocksLayer cellSize={grid.size} />
           </pixiContainer>
 
           {/* Selection rectangle (in screen coordinates, outside transform) */}
@@ -202,7 +352,10 @@ export default function Home() {
             </div>
           )}
           <div className="text-xs mt-1 opacity-75">
-            Space + Drag to pan • Scroll to zoom • Ctrl + Drag to select
+            Space+Drag: pan • Scroll: zoom • Ctrl+Drag: select • Shift+Click: multi-select
+          </div>
+          <div className="text-xs opacity-75">
+            Drag block: move • Backspace: delete • Ctrl+Z: undo • Ctrl+Shift+Z: redo
           </div>
         </div>
       </div>

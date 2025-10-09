@@ -9,6 +9,12 @@ import type { PointerPosition } from '@/types/simulation-state';
 // Event constants
 const BUILDING_BLOCK_CLICK = 'BuildingBlockClick';
 const SELECTION_COMPLETE = 'SelectionComplete';
+const BLOCK_SELECTED = 'BlockSelected';
+const DELETE_SELECTED_BLOCKS = 'DeleteSelectedBlocks';
+const BLOCKS_MOVE_PREVIEW = 'BlocksMovePreview';
+const BLOCKS_MOVED = 'BlocksMoved';
+const UNDO_REQUEST = 'UndoRequest';
+const REDO_REQUEST = 'RedoRequest';
 
 interface BuildingBlockClickEvent extends CustomEvent {
   detail: {
@@ -25,14 +31,39 @@ interface SelectionCompleteEvent extends CustomEvent {
     endY: number;
   };
 }
+
+interface BlockSelectedEvent extends CustomEvent {
+  detail: {
+    gridX: number;
+    gridY: number;
+    isShift: boolean;
+  };
+}
+
+interface BlocksMovePreviewEvent extends CustomEvent {
+  detail: {
+    offsetX: number;
+    offsetY: number;
+  };
+}
+
+interface BlocksMovedEvent extends CustomEvent {
+  detail: {
+    offsetX: number;
+    offsetY: number;
+  };
+}
 class EventManager {
   private isInitialized = false;
   private isDragging = false;
   private isDragPlacing = false;
   private isSpacePressed = false;
   private isCtrlPressed = false;
+  private isShiftPressed = false;
   private isSelecting = false;
+  private isDraggingBlocks = false;
   private selectionStartPosition: PointerPosition | null = null;
+  private dragStartGridCell: { x: number; y: number } | null = null;
   private lastPointerPosition: PointerPosition = { x: 0, y: 0 };
   private lastProcessedGridCell: { x: number; y: number } | null = null;
   private debounceTimer: NodeJS.Timeout | null = null;
@@ -88,8 +119,11 @@ class EventManager {
     this.isDragPlacing = false;
     this.isSpacePressed = false;
     this.isCtrlPressed = false;
+    this.isShiftPressed = false;
     this.isSelecting = false;
+    this.isDraggingBlocks = false;
     this.selectionStartPosition = null;
+    this.dragStartGridCell = null;
     this.lastProcessedGridCell = null;
 
     // Reset cursor
@@ -139,7 +173,7 @@ class EventManager {
   }
 
   /**
-   * Handle mouse move events for panning, selection, and cell highlighting
+   * Handle mouse move events for panning, selection, block dragging, and cell highlighting
    */
   private handleMouseMove(e: MouseEvent) {
     const state = useSimulationStore.getState();
@@ -153,6 +187,27 @@ class EventManager {
         endX: pointer.x,
         endY: pointer.y,
       });
+    }
+
+    // Handle block dragging
+    if (this.isDraggingBlocks && this.dragStartGridCell) {
+      const currentGridCell = getGridCellFromScreen(
+        pointer.x,
+        pointer.y,
+        state.grid,
+        state.viewport
+      );
+
+      if (currentGridCell) {
+        const offsetX = currentGridCell.x - this.dragStartGridCell.x;
+        const offsetY = currentGridCell.y - this.dragStartGridCell.y;
+
+        // Emit preview event
+        const event = new CustomEvent(BLOCKS_MOVE_PREVIEW, {
+          detail: { offsetX, offsetY }
+        });
+        window.dispatchEvent(event);
+      }
     }
 
     // Handle panning when Space is held and dragging
@@ -200,8 +255,8 @@ class EventManager {
 
     this.lastPointerPosition = pointer;
 
-    // Calculate which grid cell is being hovered (but not during selection)
-    if (!this.isSelecting) {
+    // Calculate which grid cell is being hovered (but not during selection or dragging blocks)
+    if (!this.isSelecting && !this.isDraggingBlocks) {
       const gridCell = getGridCellFromScreen(
         pointer.x,
         pointer.y,
@@ -224,7 +279,14 @@ class EventManager {
    * Handle mouse down events
    */
   private handleMouseDown(e: MouseEvent) {
+    const state = useSimulationStore.getState();
     const pointer = this.getViewportPointerPosition(e);
+    const gridCell = getGridCellFromScreen(
+      pointer.x,
+      pointer.y,
+      state.grid,
+      state.viewport
+    );
 
     if (this.isCtrlPressed) {
       // Start selection mode
@@ -236,11 +298,36 @@ class EventManager {
       this.isDragging = true;
       this.lastPointerPosition = pointer;
       this.updateCursor();
-    } else {
-      // Start drag placement mode
-      this.isDragPlacing = true;
-      this.lastPointerPosition = pointer;
-      this.lastProcessedGridCell = null;
+    } else if (gridCell) {
+      // Check if clicking on an existing block
+      const key = `${gridCell.x},${gridCell.y}`;
+      const hasBlock = state.buildingBlocks.has(key);
+      const isSelected = state.selectedBlocks.has(key);
+
+      if (hasBlock) {
+        // Clicking on a block - handle selection or start drag
+        if (isSelected && !this.isShiftPressed) {
+          // Start dragging selected blocks
+          this.isDraggingBlocks = true;
+          this.dragStartGridCell = { x: gridCell.x, y: gridCell.y };
+          this.updateCursor();
+        } else {
+          // Emit block selected event
+          const event = new CustomEvent(BLOCK_SELECTED, {
+            detail: {
+              gridX: gridCell.x,
+              gridY: gridCell.y,
+              isShift: this.isShiftPressed
+            }
+          });
+          window.dispatchEvent(event);
+        }
+      } else {
+        // Clicking on empty cell - start drag placement mode
+        this.isDragPlacing = true;
+        this.lastPointerPosition = pointer;
+        this.lastProcessedGridCell = null;
+      }
     }
   }
 
@@ -248,8 +335,9 @@ class EventManager {
    * Handle mouse up events
    */
   private handleMouseUp() {
+    const state = useSimulationStore.getState();
+
     if (this.isSelecting) {
-      const state = useSimulationStore.getState();
       const selection = state.selectionRectangle;
 
       // Emit selection complete event if there was a valid selection
@@ -274,6 +362,34 @@ class EventManager {
       state.setSelectionRectangle(null);
     }
 
+    if (this.isDraggingBlocks && this.dragStartGridCell) {
+      // Emit blocks moved event
+      const pointer = this.getViewportPointerPosition({ clientX: this.lastPointerPosition.x, clientY: this.lastPointerPosition.y } as MouseEvent);
+      const currentGridCell = getGridCellFromScreen(
+        pointer.x,
+        pointer.y,
+        state.grid,
+        state.viewport
+      );
+
+      if (currentGridCell) {
+        const offsetX = currentGridCell.x - this.dragStartGridCell.x;
+        const offsetY = currentGridCell.y - this.dragStartGridCell.y;
+
+        // Only emit if there was actual movement
+        if (offsetX !== 0 || offsetY !== 0) {
+          const event = new CustomEvent(BLOCKS_MOVED, {
+            detail: { offsetX, offsetY }
+          });
+          window.dispatchEvent(event);
+        }
+      }
+
+      this.isDraggingBlocks = false;
+      this.dragStartGridCell = null;
+      this.updateCursor();
+    }
+
     if (this.isDragPlacing) {
       // If no cell was processed during drag, this was a simple click
       if (this.lastProcessedGridCell === null) {
@@ -290,6 +406,7 @@ class EventManager {
       this.isDragPlacing = false;
       this.lastProcessedGridCell = null;
     }
+
     if (this.isDragging) {
       this.isDragging = false;
       this.updateCursor();
@@ -318,6 +435,32 @@ class EventManager {
       this.isCtrlPressed = true;
       this.updateCursor();
     }
+
+    if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight' || e.key === 'Shift') && !this.isShiftPressed) {
+      this.isShiftPressed = true;
+      this.updateCursor();
+    }
+
+    // Handle delete/backspace
+    if (e.code === 'Backspace' || e.code === 'Delete') {
+      e.preventDefault(); // Prevent browser back navigation
+      const event = new CustomEvent(DELETE_SELECTED_BLOCKS, { detail: {} });
+      window.dispatchEvent(event);
+    }
+
+    // Handle undo (Ctrl+Z)
+    if (this.isCtrlPressed && e.code === 'KeyZ' && !e.shiftKey) {
+      e.preventDefault();
+      const event = new CustomEvent(UNDO_REQUEST, { detail: {} });
+      window.dispatchEvent(event);
+    }
+
+    // Handle redo (Ctrl+Shift+Z or Ctrl+Y)
+    if (this.isCtrlPressed && ((e.code === 'KeyZ' && e.shiftKey) || e.code === 'KeyY')) {
+      e.preventDefault();
+      const event = new CustomEvent(REDO_REQUEST, { detail: {} });
+      window.dispatchEvent(event);
+    }
   }
 
   /**
@@ -342,13 +485,20 @@ class EventManager {
 
       this.updateCursor();
     }
+
+    if (e.code === 'ShiftLeft' || e.code === 'ShiftRight' || e.key === 'Shift') {
+      this.isShiftPressed = false;
+      this.updateCursor();
+    }
   }
 
   /**
    * Update cursor based on current state
    */
   private updateCursor() {
-    if (this.isSpacePressed && this.isDragging) {
+    if (this.isDraggingBlocks) {
+      document.body.style.cursor = 'move';
+    } else if (this.isSpacePressed && this.isDragging) {
       document.body.style.cursor = 'grabbing';
     } else if (this.isSpacePressed) {
       document.body.style.cursor = 'grab';
@@ -447,5 +597,120 @@ export const addSelectionCompleteListener = (
 
   return () => {
     window.removeEventListener(SELECTION_COMPLETE, listener);
+  };
+};
+
+/**
+ * Add a listener for block selected events
+ * @param handler - Callback function to handle block selection
+ * @returns Cleanup function to remove the listener
+ */
+export const addBlockSelectedListener = (
+  handler: (gridX: number, gridY: number, isShift: boolean) => void
+) => {
+  const listener = (e: Event) => {
+    const customEvent = e as BlockSelectedEvent;
+    handler(
+      customEvent.detail.gridX,
+      customEvent.detail.gridY,
+      customEvent.detail.isShift
+    );
+  };
+
+  window.addEventListener(BLOCK_SELECTED, listener);
+
+  return () => {
+    window.removeEventListener(BLOCK_SELECTED, listener);
+  };
+};
+
+/**
+ * Add a listener for delete selected blocks events
+ * @param handler - Callback function to handle delete request
+ * @returns Cleanup function to remove the listener
+ */
+export const addDeleteSelectedBlocksListener = (handler: () => void) => {
+  const listener = () => {
+    handler();
+  };
+
+  window.addEventListener(DELETE_SELECTED_BLOCKS, listener);
+
+  return () => {
+    window.removeEventListener(DELETE_SELECTED_BLOCKS, listener);
+  };
+};
+
+/**
+ * Add a listener for blocks move preview events
+ * @param handler - Callback function to handle move preview
+ * @returns Cleanup function to remove the listener
+ */
+export const addBlocksMovePreviewListener = (
+  handler: (offsetX: number, offsetY: number) => void
+) => {
+  const listener = (e: Event) => {
+    const customEvent = e as BlocksMovePreviewEvent;
+    handler(customEvent.detail.offsetX, customEvent.detail.offsetY);
+  };
+
+  window.addEventListener(BLOCKS_MOVE_PREVIEW, listener);
+
+  return () => {
+    window.removeEventListener(BLOCKS_MOVE_PREVIEW, listener);
+  };
+};
+
+/**
+ * Add a listener for blocks moved events
+ * @param handler - Callback function to handle completed move
+ * @returns Cleanup function to remove the listener
+ */
+export const addBlocksMovedListener = (
+  handler: (offsetX: number, offsetY: number) => void
+) => {
+  const listener = (e: Event) => {
+    const customEvent = e as BlocksMovedEvent;
+    handler(customEvent.detail.offsetX, customEvent.detail.offsetY);
+  };
+
+  window.addEventListener(BLOCKS_MOVED, listener);
+
+  return () => {
+    window.removeEventListener(BLOCKS_MOVED, listener);
+  };
+};
+
+/**
+ * Add a listener for undo request events
+ * @param handler - Callback function to handle undo request
+ * @returns Cleanup function to remove the listener
+ */
+export const addUndoRequestListener = (handler: () => void) => {
+  const listener = () => {
+    handler();
+  };
+
+  window.addEventListener(UNDO_REQUEST, listener);
+
+  return () => {
+    window.removeEventListener(UNDO_REQUEST, listener);
+  };
+};
+
+/**
+ * Add a listener for redo request events
+ * @param handler - Callback function to handle redo request
+ * @returns Cleanup function to remove the listener
+ */
+export const addRedoRequestListener = (handler: () => void) => {
+  const listener = () => {
+    handler();
+  };
+
+  window.addEventListener(REDO_REQUEST, listener);
+
+  return () => {
+    window.removeEventListener(REDO_REQUEST, listener);
   };
 };
