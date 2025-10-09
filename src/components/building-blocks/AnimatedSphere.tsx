@@ -49,8 +49,7 @@ function AnimatedSphere({ x, y, radius, velocityX, velocityY, color = '#4488ff' 
         scale={{ x: shadowScale, y: shadowScale * 0.5 }}
         draw={(g) => {
           g.clear();
-          g.fill(0x000000);
-          g.ellipse(0, 0, radius * 0.8, radius * 0.3);
+          g.ellipse(0, 0, radius * 0.8, radius * 0.3).fill({ color: 0x000000 });
         }}
       />
 
@@ -62,16 +61,13 @@ function AnimatedSphere({ x, y, radius, velocityX, velocityY, color = '#4488ff' 
         <pixiGraphics
           draw={(g) => {
             g.clear();
-            g.stroke(0x000000);
-            g.fill();
-
-            g.moveTo(0, 0);
-            g.lineTo(radius * 0.6, 0);
-            g.lineTo(radius * 0.5, -4);
-            g.lineTo(radius * 0.6, 0);
-            g.lineTo(radius * 0.5, 4);
-
-            g.fill();
+            g.moveTo(0, 0)
+              .lineTo(radius * 0.6, 0)
+              .lineTo(radius * 0.5, -4)
+              .lineTo(radius * 0.6, 0)
+              .lineTo(radius * 0.5, 4)
+              .fill({ color: 0x000000, alpha: 0.8 })
+              .stroke({ width: 2, color: 0x000000, alpha: 0.8 });
           }}
         />
       </pixiContainer>
@@ -96,11 +92,11 @@ function drawSphere(g: Graphics, radius: number, color: string) {
     const b = (hexColor & 0xff) * brightness;
     const adjustedColor = (r << 16) | (g_val << 8) | b;
 
-    g.fill(adjustedColor);
-    g.circle(-radius * 0.2, -radius * 0.2, currentRadius);
+    g.circle(-radius * 0.2, -radius * 0.2, currentRadius).fill({ color: adjustedColor });
   }
 
   // Highlight
-  g.fill(0xffffff, 0.5)
-  g.circle(-radius * 0.3, -radius * 0.3, radius * 0.2);
+  g.circle(-radius * 0.3, -radius * 0.3, radius * 0.2).fill({ color: 0xffffff, alpha: 0.5 });
 }
+
+export default AnimatedSphere;
