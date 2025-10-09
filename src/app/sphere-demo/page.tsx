@@ -3,9 +3,10 @@
 import { Application, extend } from "@pixi/react";
 import { Container, type FederatedPointerEvent } from "pixi.js";
 import { useState, useEffect, useRef } from "react";
-import AnimatedSphere from "@/components/building-blocks/AnimatedSphere";
-import SimpleSphere from "@/components/building-blocks/SimpleSphere";
-import OptimizedSphere from "@/components/building-blocks/OptimizedSphere";
+import AnimatedSphere from "@/components/building-blocks/car/AnimatedSphere";
+import SimpleSphere from "@/components/building-blocks/car/SimpleSphere";
+import OptimizedSphere from "@/components/building-blocks/car/OptimizedSphere";
+import UltraOptimizedSpheres from "@/components/building-blocks/car/UltraOptimizedSpheres";
 
 extend({ Container });
 
@@ -23,7 +24,7 @@ export default function SphereDemo() {
   const [speed, setSpeed] = useState(2);
   const [radius, setRadius] = useState(15);
   const [selectedColor, setSelectedColor] = useState("#4488ff");
-  const [sphereType, setSphereType] = useState<'animated' | 'simple' | 'optimized'>('optimized');
+  const [sphereType, setSphereType] = useState<'animated' | 'simple' | 'optimized' | 'ultra'>('ultra');
   const [fps, setFps] = useState(60);
 
   const animationFrameRef = useRef<number | undefined>(undefined);
@@ -129,16 +130,16 @@ export default function SphereDemo() {
       {/* Control Panel */}
       <div className="absolute top-4 left-4 bg-gray-800 rounded-lg p-4 shadow-lg z-10 text-white space-y-4 min-w-[280px]">
         <h2 className="text-xl font-bold mb-4">
-          {sphereType === 'animated' ? 'AnimatedSphere' : sphereType === 'simple' ? 'SimpleSphere' : 'OptimizedSphere'} Demo
+          {sphereType === 'animated' ? 'AnimatedSphere' : sphereType === 'simple' ? 'SimpleSphere' : sphereType === 'optimized' ? 'OptimizedSphere' : 'UltraOptimized'} Demo
         </h2>
 
         <div className="space-y-2">
           <span className="block">Implementation:</span>
-          <div className="flex gap-2">
+          <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
               onClick={() => setSphereType('animated')}
-              className={`flex-1 px-3 py-2 rounded-lg font-semibold transition-colors ${
+              className={`px-3 py-2 rounded-lg font-semibold transition-colors text-sm ${
                 sphereType === 'animated' ? 'bg-purple-600' : 'bg-gray-700 hover:bg-gray-600'
               }`}
             >
@@ -147,7 +148,7 @@ export default function SphereDemo() {
             <button
               type="button"
               onClick={() => setSphereType('simple')}
-              className={`flex-1 px-3 py-2 rounded-lg font-semibold transition-colors ${
+              className={`px-3 py-2 rounded-lg font-semibold transition-colors text-sm ${
                 sphereType === 'simple' ? 'bg-purple-600' : 'bg-gray-700 hover:bg-gray-600'
               }`}
             >
@@ -156,11 +157,20 @@ export default function SphereDemo() {
             <button
               type="button"
               onClick={() => setSphereType('optimized')}
-              className={`flex-1 px-3 py-2 rounded-lg font-semibold transition-colors ${
+              className={`px-3 py-2 rounded-lg font-semibold transition-colors text-sm ${
                 sphereType === 'optimized' ? 'bg-purple-600' : 'bg-gray-700 hover:bg-gray-600'
               }`}
             >
               Optimized
+            </button>
+            <button
+              type="button"
+              onClick={() => setSphereType('ultra')}
+              className={`px-3 py-2 rounded-lg font-semibold transition-colors text-sm ${
+                sphereType === 'ultra' ? 'bg-purple-600' : 'bg-gray-700 hover:bg-gray-600'
+              }`}
+            >
+              Ultra ⚡
             </button>
           </div>
         </div>
@@ -246,7 +256,23 @@ export default function SphereDemo() {
             onClick={() => addRandomSpheres(1000)}
             className="w-full px-4 py-2 bg-blue-700 hover:bg-blue-800 rounded-lg font-semibold transition-colors"
           >
-            + Add 1000 Spheres
+            + Add 1,000 Spheres
+          </button>
+
+          <button
+            type="button"
+            onClick={() => addRandomSpheres(5000)}
+            className="w-full px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg font-semibold transition-colors"
+          >
+            + Add 5,000 Spheres ⚡
+          </button>
+
+          <button
+            type="button"
+            onClick={() => addRandomSpheres(10000)}
+            className="w-full px-4 py-2 bg-indigo-700 hover:bg-indigo-800 rounded-lg font-semibold transition-colors"
+          >
+            + Add 10,000 Spheres 🚀
           </button>
 
           <button
@@ -277,41 +303,48 @@ export default function SphereDemo() {
           eventMode="static"
           onPointerDown={addSphere}
         >
-          {spheres.map((sphere) => {
-            if (sphereType === 'animated') {
-              return (
-                <AnimatedSphere
-                  key={sphere.id}
-                  x={sphere.x}
-                  y={sphere.y}
-                  radius={radius}
-                  velocityX={sphere.vx * speed}
-                  velocityY={sphere.vy * speed}
-                  color={sphere.color}
-                />
-              );
-            } else if (sphereType === 'simple') {
-              return (
-                <SimpleSphere
-                  key={sphere.id}
-                  x={sphere.x}
-                  y={sphere.y}
-                  radius={radius}
-                  color={sphere.color}
-                />
-              );
-            } else {
-              return (
-                <OptimizedSphere
-                  key={sphere.id}
-                  x={sphere.x}
-                  y={sphere.y}
-                  radius={radius}
-                  color={sphere.color}
-                />
-              );
-            }
-          })}
+          {sphereType === 'ultra' ? (
+            <UltraOptimizedSpheres
+              spheres={spheres}
+              radius={radius}
+            />
+          ) : (
+            spheres.map((sphere) => {
+              if (sphereType === 'animated') {
+                return (
+                  <AnimatedSphere
+                    key={sphere.id}
+                    x={sphere.x}
+                    y={sphere.y}
+                    radius={radius}
+                    velocityX={sphere.vx * speed}
+                    velocityY={sphere.vy * speed}
+                    color={sphere.color}
+                  />
+                );
+              } else if (sphereType === 'simple') {
+                return (
+                  <SimpleSphere
+                    key={sphere.id}
+                    x={sphere.x}
+                    y={sphere.y}
+                    radius={radius}
+                    color={sphere.color}
+                  />
+                );
+              } else {
+                return (
+                  <OptimizedSphere
+                    key={sphere.id}
+                    x={sphere.x}
+                    y={sphere.y}
+                    radius={radius}
+                    color={sphere.color}
+                  />
+                );
+              }
+            })
+          )}
         </pixiContainer>
       </Application>
     </div>
