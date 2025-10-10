@@ -241,25 +241,35 @@ export const useSimulationStore = create<SimulationStore>()(
           const movedBlocks: PlacedBuildingBlock[] = [];
           const originalPositions: Array<{ gridX: number; gridY: number }> = [];
           const newPositions: Array<{ gridX: number; gridY: number }> = [];
+          const blocksToMove: Array<{ block: PlacedBuildingBlock; from: string; to: string; toPos: { gridX: number; gridY: number } }> = [];
 
-          // Move each block
+          // Phase 1: Collect all blocks to move and remove them from the map
           for (const { from, to } of blocks) {
             const fromKey = `${from.gridX},${from.gridY}`;
             const block = newMap.get(fromKey);
 
             if (block) {
-              // Remove from old position
-              newMap.delete(fromKey);
-
-              // Add to new position
-              const movedBlock = { ...block, gridX: to.gridX, gridY: to.gridY };
               const toKey = `${to.gridX},${to.gridY}`;
-              newMap.set(toKey, movedBlock);
+              blocksToMove.push({
+                block,
+                from: fromKey,
+                to: toKey,
+                toPos: { gridX: to.gridX, gridY: to.gridY }
+              });
 
-              movedBlocks.push(movedBlock);
-              originalPositions.push({ gridX: from.gridX, gridY: from.gridY });
-              newPositions.push({ gridX: to.gridX, gridY: to.gridY });
+              // Remove from old position immediately
+              newMap.delete(fromKey);
             }
+          }
+
+          // Phase 2: Add all blocks to their new positions
+          for (const { block, to, toPos } of blocksToMove) {
+            const movedBlock = { ...block, gridX: toPos.gridX, gridY: toPos.gridY };
+            newMap.set(to, movedBlock);
+
+            movedBlocks.push(movedBlock);
+            originalPositions.push({ gridX: block.gridX, gridY: block.gridY });
+            newPositions.push({ gridX: toPos.gridX, gridY: toPos.gridY });
           }
 
           // Record history
