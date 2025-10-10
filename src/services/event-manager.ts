@@ -206,11 +206,12 @@ class EventManager {
         // Update last processed grid cell
         this.lastProcessedGridCell = { x: gridCell.x, y: gridCell.y };
 
-        // Emit click event for this cell
+        // Emit click event for this cell (with drag flag)
         const event = new CustomEvent(BUILDING_BLOCK_CLICK, {
           detail: {
             x: pointer.x,
-            y: pointer.y
+            y: pointer.y,
+            isDrag: true
           }
         });
         window.dispatchEvent(event);
@@ -367,7 +368,8 @@ class EventManager {
         const event = new CustomEvent(BUILDING_BLOCK_CLICK, {
           detail: {
             x: this.lastPointerPosition.x,
-            y: this.lastPointerPosition.y
+            y: this.lastPointerPosition.y,
+            isDrag: false
           }
         });
         window.dispatchEvent(event);
@@ -575,13 +577,13 @@ function createEventListener(
 
 /**
  * Add a listener for building block click events
- * @param handler - Callback function to handle clicks with screen coordinates
+ * @param handler - Callback function to handle clicks with screen coordinates and drag flag
  * @returns Cleanup function to remove the listener
  */
 export const addBuildingBlockClickListener = createEventListenerWithDetail<
-  { x: number; y: number },
-  [number, number]
->(BUILDING_BLOCK_CLICK, (detail) => [detail.x, detail.y]);
+  { x: number; y: number; isDrag: boolean },
+  [number, number, boolean]
+>(BUILDING_BLOCK_CLICK, (detail) => [detail.x, detail.y, detail.isDrag ?? false]);
 
 /**
  * Add a listener for selection complete events

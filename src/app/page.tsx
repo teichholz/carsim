@@ -83,17 +83,12 @@ export default function Home() {
 
   // Handle building block placement
   const handleCellClick = useCallback(
-    (gridX: number, gridY: number) => {
+    (gridX: number, gridY: number, _isDrag: boolean) => {
       if (!selectedBlock) return;
 
       // Check if there's already a building block at this position
       const key = `${gridX},${gridY}`;
       if (buildingBlocks.has(key)) {
-        // Remove existing block
-        useSimulationStore.getState().removeBuildingBlock(gridX, gridY);
-
-        // Update connections for surrounding streets that might have lost a connection
-        updateStreetConnections(gridX, gridY);
         return;
       }
 
@@ -119,7 +114,7 @@ export default function Home() {
 
   // Handle building block placement clicks
   useEffect(() => {
-    const cleanup = addBuildingBlockClickListener((screenX, screenY) => {
+    const cleanup = addBuildingBlockClickListener((screenX, screenY, isDrag) => {
       if (!selectedBlock) return;
 
       // Convert screen coordinates to grid coordinates
@@ -130,7 +125,7 @@ export default function Home() {
         viewport
       );
 
-      handleCellClick(gridX, gridY);
+      handleCellClick(gridX, gridY, isDrag);
     });
 
     return cleanup;
@@ -238,7 +233,7 @@ export default function Home() {
         const newKey = `${newX},${newY}`;
 
         // Check if new position conflicts with an existing block (that's not being moved)
-        if (state.buildingBlocks.has(newKey) && !selectedBlocks.includes(newKey)) {
+        if (state.buildingBlocks.has(newKey) && !state.selectedBlocks.has(newKey)) {
           // Collision detected - abort move
           console.warn('Cannot move blocks: collision detected');
           return;
