@@ -8,7 +8,8 @@ import BuildingBlocksLayer from "@/components/building-blocks/BuildingBlocksLaye
 import SelectionRectangle from "@/components/SelectionRectangle";
 import SelectedBlocksLayer from "@/components/SelectedBlocksLayer";
 import MovePreviewLayer from "@/components/MovePreviewLayer";
-import ContextMenu, { type SettingConfig } from "@/components/ContextMenu";
+import ContextMenu from "@/components/ContextMenu";
+import { getContextMenuConfig, hasContextMenu } from "@/utils/context-menu-utils";
 import {
   useGridState,
   useViewportState,
@@ -388,11 +389,12 @@ export default function Home() {
         viewport
       );
 
-      // Check if there's a car generator at this position
+      // Check if there's a building block at this position
       const key = `${gridX},${gridY}`;
       const block = buildingBlocks.get(key);
 
-      if (block && block.type === BuildingBlockType.CAR_GENERATOR) {
+      // Only show context menu if the block has one configured
+      if (block && hasContextMenu(block)) {
         setContextMenu({
           x: e.clientX,
           y: e.clientY,
@@ -517,36 +519,17 @@ export default function Home() {
 
       {/* Context Menu */}
       {contextMenu && (() => {
-        const settings: SettingConfig[] = [
-          {
-            id: 'frequency',
-            label: 'Frequency',
-            value: contextMenu.block.frequency,
-            unit: 'cars/tile',
-            type: 'slider',
-            min: 0.1,
-            max: 5,
-            step: 0.1,
-          },
-          {
-            id: 'speed',
-            label: 'Speed',
-            value: contextMenu.block.speed,
-            unit: 'tiles/second',
-            type: 'slider',
-            min: 0.5,
-            max: 10,
-            step: 0.5,
-          },
-        ];
+        const config = getContextMenuConfig(contextMenu.block);
+
+        if (!config) return null;
 
         return (
           <ContextMenu
             x={contextMenu.x}
             y={contextMenu.y}
-            title="Car Generator Settings"
-            subtitle={`Direction: ${contextMenu.block.direction.toUpperCase()}`}
-            settings={settings}
+            title={config.title}
+            subtitle={config.subtitle}
+            settings={config.settings}
             onSettingChange={handleSettingChange}
             onClose={handleContextMenuClose}
           />

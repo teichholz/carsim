@@ -1,3 +1,19 @@
+export interface ContextMenuSettingConfig {
+  id: string;
+  label: string;
+  unit?: string;
+  type: 'slider' | 'number';
+  min: number;
+  max: number;
+  step: number;
+}
+
+export interface BuildingBlockContextMenuConfig {
+  title: string;
+  getSubtitle?: (block: PlacedBuildingBlock) => string;
+  settings: ContextMenuSettingConfig[];
+}
+
 export interface BuildingBlock {
   id: string;
   name: string;
@@ -5,6 +21,7 @@ export interface BuildingBlock {
   icon: string;
   description: string;
   properties?: Record<string, unknown>;
+  contextMenu?: BuildingBlockContextMenuConfig;
 }
 
 // Base interface for all building block instances placed on the grid
@@ -13,7 +30,6 @@ export interface PlacedBuildingBlock {
   type: BuildingBlockType;
   gridX: number;
   gridY: number;
-  properties?: Record<string, unknown>;
 }
 
 // Street-specific interfaces
@@ -73,6 +89,33 @@ export const BUILDING_BLOCKS: BuildingBlock[] = [
     properties: {
       frequency: 1, // cars per tile
       speed: 2, // tiles per second
+    },
+    contextMenu: {
+      title: 'Car Generator Settings',
+      getSubtitle: (block) => {
+        const carGenBlock = block as CarGeneratorBlock;
+        return `Direction: ${carGenBlock.direction.toUpperCase()}`;
+      },
+      settings: [
+        {
+          id: 'frequency',
+          label: 'Frequency',
+          unit: 'cars/tile',
+          type: 'slider',
+          min: 0.1,
+          max: 5,
+          step: 0.1,
+        },
+        {
+          id: 'speed',
+          label: 'Speed',
+          unit: 'tiles/second',
+          type: 'slider',
+          min: 0.5,
+          max: 10,
+          step: 0.5,
+        },
+      ],
     },
   },
 ];
