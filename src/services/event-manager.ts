@@ -15,44 +15,8 @@ const BLOCKS_MOVE_PREVIEW = 'BlocksMovePreview';
 const BLOCKS_MOVED = 'BlocksMoved';
 const UNDO_REQUEST = 'UndoRequest';
 const REDO_REQUEST = 'RedoRequest';
+const CLEAR_SELECTION = 'ClearSelection';
 
-interface BuildingBlockClickEvent extends CustomEvent {
-  detail: {
-    x: number;
-    y: number;
-  };
-}
-
-interface SelectionCompleteEvent extends CustomEvent {
-  detail: {
-    startX: number;
-    startY: number;
-    endX: number;
-    endY: number;
-  };
-}
-
-interface BlockSelectedEvent extends CustomEvent {
-  detail: {
-    gridX: number;
-    gridY: number;
-    isShift: boolean;
-  };
-}
-
-interface BlocksMovePreviewEvent extends CustomEvent {
-  detail: {
-    offsetX: number;
-    offsetY: number;
-  };
-}
-
-interface BlocksMovedEvent extends CustomEvent {
-  detail: {
-    offsetX: number;
-    offsetY: number;
-  };
-}
 class EventManager {
   private isInitialized = false;
   private isDragging = false;
@@ -323,7 +287,14 @@ class EventManager {
           window.dispatchEvent(event);
         }
       } else {
-        // Clicking on empty cell - start drag placement mode
+        // Clicking on empty cell
+        // Clear selection if there are selected blocks and not shift-clicking
+        if (state.selectedBlocks.size > 0 && !this.isShiftPressed) {
+          const event = new CustomEvent(CLEAR_SELECTION, { detail: {} });
+          window.dispatchEvent(event);
+        }
+
+        // Start drag placement mode
         this.isDragPlacing = true;
         this.lastPointerPosition = pointer;
         this.lastProcessedGridCell = null;
@@ -461,6 +432,13 @@ class EventManager {
       const event = new CustomEvent(REDO_REQUEST, { detail: {} });
       window.dispatchEvent(event);
     }
+
+    // Handle ESC to clear selection
+    if (e.code === 'Escape') {
+      e.preventDefault();
+      const event = new CustomEvent(CLEAR_SELECTION, { detail: {} });
+      window.dispatchEvent(event);
+    }
   }
 
   /**
@@ -556,161 +534,119 @@ export const installEventHandling = () => {
 };
 
 /**
+ * Generic helper to create event listener registration functions with typed detail payload
+ */
+function createEventListenerWithDetail<TDetail, TArgs extends unknown[]>(
+  eventName: string,
+  extractArgs: (detail: TDetail) => TArgs
+): (handler: (...args: TArgs) => void) => () => void {
+  return (handler: (...args: TArgs) => void) => {
+    const listener = (e: Event) => {
+      const customEvent = e as CustomEvent<TDetail>;
+      handler(...extractArgs(customEvent.detail));
+    };
+
+    window.addEventListener(eventName, listener);
+
+    return () => {
+      window.removeEventListener(eventName, listener);
+    };
+  };
+}
+
+/**
+ * Generic helper to create event listener registration functions without payload
+ */
+function createEventListener(
+  eventName: string
+): (handler: () => void) => () => void {
+  return (handler: () => void) => {
+    const listener = () => {
+      handler();
+    };
+
+    window.addEventListener(eventName, listener);
+
+    return () => {
+      window.removeEventListener(eventName, listener);
+    };
+  };
+}
+
+/**
  * Add a listener for building block click events
  * @param handler - Callback function to handle clicks with screen coordinates
  * @returns Cleanup function to remove the listener
  */
-export const addBuildingBlockClickListener = (
-  handler: (screenX: number, screenY: number) => void
-) => {
-  const listener = (e: Event) => {
-    const customEvent = e as BuildingBlockClickEvent;
-    handler(customEvent.detail.x, customEvent.detail.y);
-  };
-
-  window.addEventListener(BUILDING_BLOCK_CLICK, listener);
-
-  return () => {
-    window.removeEventListener(BUILDING_BLOCK_CLICK, listener);
-  };
-};
+export const addBuildingBlockClickListener = createEventListenerWithDetail<
+  { x: number; y: number },
+  [number, number]
+>(BUILDING_BLOCK_CLICK, (detail) => [detail.x, detail.y]);
 
 /**
  * Add a listener for selection complete events
  * @param handler - Callback function to handle selection completion with screen coordinates
  * @returns Cleanup function to remove the listener
  */
-export const addSelectionCompleteListener = (
-  handler: (startX: number, startY: number, endX: number, endY: number) => void
-) => {
-  const listener = (e: Event) => {
-    const customEvent = e as SelectionCompleteEvent;
-    handler(
-      customEvent.detail.startX,
-      customEvent.detail.startY,
-      customEvent.detail.endX,
-      customEvent.detail.endY
-    );
-  };
-
-  window.addEventListener(SELECTION_COMPLETE, listener);
-
-  return () => {
-    window.removeEventListener(SELECTION_COMPLETE, listener);
-  };
-};
+export const addSelectionCompleteListener = createEventListenerWithDetail<
+  { startX: number; startY: number; endX: number; endY: number },
+  [number, number, number, number]
+>(SELECTION_COMPLETE, (detail) => [detail.startX, detail.startY, detail.endX, detail.endY]);
 
 /**
  * Add a listener for block selected events
  * @param handler - Callback function to handle block selection
  * @returns Cleanup function to remove the listener
  */
-export const addBlockSelectedListener = (
-  handler: (gridX: number, gridY: number, isShift: boolean) => void
-) => {
-  const listener = (e: Event) => {
-    const customEvent = e as BlockSelectedEvent;
-    handler(
-      customEvent.detail.gridX,
-      customEvent.detail.gridY,
-      customEvent.detail.isShift
-    );
-  };
-
-  window.addEventListener(BLOCK_SELECTED, listener);
-
-  return () => {
-    window.removeEventListener(BLOCK_SELECTED, listener);
-  };
-};
+export const addBlockSelectedListener = createEventListenerWithDetail<
+  { gridX: number; gridY: number; isShift: boolean },
+  [number, number, boolean]
+>(BLOCK_SELECTED, (detail) => [detail.gridX, detail.gridY, detail.isShift]);
 
 /**
  * Add a listener for delete selected blocks events
  * @param handler - Callback function to handle delete request
  * @returns Cleanup function to remove the listener
  */
-export const addDeleteSelectedBlocksListener = (handler: () => void) => {
-  const listener = () => {
-    handler();
-  };
-
-  window.addEventListener(DELETE_SELECTED_BLOCKS, listener);
-
-  return () => {
-    window.removeEventListener(DELETE_SELECTED_BLOCKS, listener);
-  };
-};
+export const addDeleteSelectedBlocksListener = createEventListener(DELETE_SELECTED_BLOCKS);
 
 /**
  * Add a listener for blocks move preview events
  * @param handler - Callback function to handle move preview
  * @returns Cleanup function to remove the listener
  */
-export const addBlocksMovePreviewListener = (
-  handler: (offsetX: number, offsetY: number) => void
-) => {
-  const listener = (e: Event) => {
-    const customEvent = e as BlocksMovePreviewEvent;
-    handler(customEvent.detail.offsetX, customEvent.detail.offsetY);
-  };
-
-  window.addEventListener(BLOCKS_MOVE_PREVIEW, listener);
-
-  return () => {
-    window.removeEventListener(BLOCKS_MOVE_PREVIEW, listener);
-  };
-};
+export const addBlocksMovePreviewListener = createEventListenerWithDetail<
+  { offsetX: number; offsetY: number },
+  [number, number]
+>(BLOCKS_MOVE_PREVIEW, (detail) => [detail.offsetX, detail.offsetY]);
 
 /**
  * Add a listener for blocks moved events
  * @param handler - Callback function to handle completed move
  * @returns Cleanup function to remove the listener
  */
-export const addBlocksMovedListener = (
-  handler: (offsetX: number, offsetY: number) => void
-) => {
-  const listener = (e: Event) => {
-    const customEvent = e as BlocksMovedEvent;
-    handler(customEvent.detail.offsetX, customEvent.detail.offsetY);
-  };
-
-  window.addEventListener(BLOCKS_MOVED, listener);
-
-  return () => {
-    window.removeEventListener(BLOCKS_MOVED, listener);
-  };
-};
+export const addBlocksMovedListener = createEventListenerWithDetail<
+  { offsetX: number; offsetY: number },
+  [number, number]
+>(BLOCKS_MOVED, (detail) => [detail.offsetX, detail.offsetY]);
 
 /**
  * Add a listener for undo request events
  * @param handler - Callback function to handle undo request
  * @returns Cleanup function to remove the listener
  */
-export const addUndoRequestListener = (handler: () => void) => {
-  const listener = () => {
-    handler();
-  };
-
-  window.addEventListener(UNDO_REQUEST, listener);
-
-  return () => {
-    window.removeEventListener(UNDO_REQUEST, listener);
-  };
-};
+export const addUndoRequestListener = createEventListener(UNDO_REQUEST);
 
 /**
  * Add a listener for redo request events
  * @param handler - Callback function to handle redo request
  * @returns Cleanup function to remove the listener
  */
-export const addRedoRequestListener = (handler: () => void) => {
-  const listener = () => {
-    handler();
-  };
+export const addRedoRequestListener = createEventListener(REDO_REQUEST);
 
-  window.addEventListener(REDO_REQUEST, listener);
-
-  return () => {
-    window.removeEventListener(REDO_REQUEST, listener);
-  };
-};
+/**
+ * Add a listener for clear selection events
+ * @param handler - Callback function to handle clear selection request
+ * @returns Cleanup function to remove the listener
+ */
+export const addClearSelectionListener = createEventListener(CLEAR_SELECTION);

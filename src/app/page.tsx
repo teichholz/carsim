@@ -7,6 +7,7 @@ import Inventory from "@/components/Inventory";
 import BuildingBlocksLayer from "@/components/building-blocks/BuildingBlocksLayer";
 import SelectionRectangle from "@/components/SelectionRectangle";
 import SelectedBlocksLayer from "@/components/SelectedBlocksLayer";
+import MovePreviewLayer from "@/components/MovePreviewLayer";
 import {
   useGridState,
   useViewportState,
@@ -27,6 +28,7 @@ import {
   addBlocksMovedListener,
   addUndoRequestListener,
   addRedoRequestListener,
+  addClearSelectionListener,
 } from "@/services/event-manager";
 import { useSimulationStore } from "@/store/simulation-store";
 import { createStreetBlock } from "@/utils/street-utils";
@@ -289,6 +291,15 @@ export default function Home() {
     return cleanup;
   }, []);
 
+  // Handle clear selection
+  useEffect(() => {
+    const cleanup = addClearSelectionListener(() => {
+      useSimulationStore.getState().clearSelection();
+    });
+
+    return cleanup;
+  }, []);
+
   // Viewport size is now handled by the event manager
 
   // Don't render until viewport size is available and assets are loaded
@@ -333,6 +344,9 @@ export default function Home() {
 
             {/* Selected blocks highlight layer */}
             <SelectedBlocksLayer cellSize={grid.size} />
+
+            {/* Move preview layer */}
+            <MovePreviewLayer cellSize={grid.size} />
           </pixiContainer>
 
           {/* Selection rectangle (in screen coordinates, outside transform) */}
@@ -355,7 +369,7 @@ export default function Home() {
             Space+Drag: pan • Scroll: zoom • Ctrl+Drag: select • Shift+Click: multi-select
           </div>
           <div className="text-xs opacity-75">
-            Drag block: move • Backspace: delete • Ctrl+Z: undo • Ctrl+Shift+Z: redo
+            Drag block: move • Backspace: delete • ESC: deselect • Ctrl+Z: undo • Ctrl+Shift+Z: redo
           </div>
         </div>
       </div>

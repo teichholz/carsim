@@ -184,3 +184,4 @@ Potential improvements that could be added:
 3. No selection persistence across page reloads
 4. Cannot undo/redo grid transformations (pan/zoom)
 
+

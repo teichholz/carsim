@@ -32,16 +32,9 @@ export default function SelectedBlocksLayer({ cellSize }: SelectedBlocksLayerPro
           cellSize
         );
 
-        // Draw selection rectangle with blue outline
+        // Draw selection rectangle with blue outline (no radius)
         graphics.setStrokeStyle({ width: 3, color: 0x3b82f6, alpha: 0.8 });
-        graphics.setFillStyle({ color: 0x3b82f6, alpha: 0.15 });
-        graphics.roundRect(worldX, worldY, cellSize, cellSize, 5);
-        graphics.fill();
-        graphics.stroke();
-
-        // Add inner glow effect
-        graphics.setStrokeStyle({ width: 1, color: 0x60a5fa, alpha: 0.5 });
-        graphics.roundRect(worldX + 2, worldY + 2, cellSize - 4, cellSize - 4, 3);
+        graphics.rect(worldX, worldY, cellSize, cellSize);
         graphics.stroke();
       }
     },
@@ -50,4 +43,5 @@ export default function SelectedBlocksLayer({ cellSize }: SelectedBlocksLayerPro
 
   return <pixiGraphics draw={renderSelectionHighlights} />;
 }
+
 
