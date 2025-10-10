@@ -29,6 +29,21 @@ export interface StreetConnections {
   left: boolean;
 }
 
+// Car Generator-specific interfaces
+export enum CarGeneratorDirection {
+  NORTH = 'north', // Generates cars going up
+  SOUTH = 'south', // Generates cars going down
+  EAST = 'east',   // Generates cars going right
+  WEST = 'west',   // Generates cars going left
+}
+
+export interface CarGeneratorBlock extends PlacedBuildingBlock {
+  type: BuildingBlockType.CAR_GENERATOR;
+  direction: CarGeneratorDirection;
+  frequency: number; // cars per tile (spawn x cars when connected tile is free)
+  speed: number;     // tiles per second
+}
+
 export enum BuildingBlockType {
   // Street type - single unified type
   STREET = 'street',
@@ -50,56 +65,14 @@ export const BUILDING_BLOCKS: BuildingBlock[] = [
     description: 'Road segment that adapts to connections',
   },
   {
-    id: 'roundabout',
-    name: 'Roundabout',
-    type: BuildingBlockType.ROUNDABOUT,
-    icon: '🔄',
-    description: 'Traffic roundabout',
-    properties: {
-      size: 'medium',
-      lanes: 1,
-    },
-  },
-  {
-    id: 'speed-limit',
-    name: 'Speed Limit',
-    type: BuildingBlockType.SPEED_LIMIT,
-    icon: '🚧',
-    description: 'Speed limit zone',
-    properties: {
-      speedLimit: 50,
-      unit: 'km/h',
-    },
-  },
-  {
     id: 'car-generator',
     name: 'Car Generator',
     type: BuildingBlockType.CAR_GENERATOR,
     icon: '🚗',
     description: 'Generates cars at specified frequency',
     properties: {
-      frequency: 1, // cars per second
-      speed: 30, // km/h
-    },
-  },
-  {
-    id: 'traffic-light',
-    name: 'Traffic Light',
-    type: BuildingBlockType.TRAFFIC_LIGHT,
-    icon: '🚦',
-    description: 'Traffic control light',
-    properties: {
-      cycleTime: 30, // seconds
-    },
-  },
-  {
-    id: 'stop-sign',
-    name: 'Stop Sign',
-    type: BuildingBlockType.STOP_SIGN,
-    icon: '🛑',
-    description: 'Stop sign for traffic control',
-    properties: {
-      stopTime: 3, // seconds
+      frequency: 1, // cars per tile
+      speed: 2, // tiles per second
     },
   },
 ];

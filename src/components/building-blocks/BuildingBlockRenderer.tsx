@@ -1,8 +1,9 @@
 import type React from 'react';
 import { memo } from 'react';
 import Street from './Street';
+import CarGenerator from './CarGenerator';
 import { BuildingBlockType } from '@/types/building-blocks';
-import type { PlacedBuildingBlock, StreetBlock } from '@/types/building-blocks';
+import type { PlacedBuildingBlock, StreetBlock, CarGeneratorBlock } from '@/types/building-blocks';
 import type { BuildingBlockComponentProps } from './BaseBuildingBlock';
 
 export interface BuildingBlockRendererProps {
@@ -25,6 +26,11 @@ const BuildingBlockRenderer: React.FC<BuildingBlockRendererProps> = memo(({
       return <Street {...props} block={block as StreetBlock} />;
     }
 
+    // Check if it's a car generator block
+    if (isCarGeneratorType(block.type)) {
+      return <CarGenerator {...props} block={block as CarGeneratorBlock} />;
+    }
+
     // Add other building block types here as they are implemented
     return null;
   };
@@ -36,5 +42,12 @@ const BuildingBlockRenderer: React.FC<BuildingBlockRendererProps> = memo(({
 const isStreetType = (type: BuildingBlockType): boolean => {
   return type === BuildingBlockType.STREET;
 };
+
+// Helper function to check if a building block type is a car generator
+const isCarGeneratorType = (type: BuildingBlockType): boolean => {
+  return type === BuildingBlockType.CAR_GENERATOR;
+};
+
+BuildingBlockRenderer.displayName = 'BuildingBlockRenderer';
 
 export default BuildingBlockRenderer;

@@ -8,6 +8,7 @@ import BuildingBlocksLayer from "@/components/building-blocks/BuildingBlocksLaye
 import SelectionRectangle from "@/components/SelectionRectangle";
 import SelectedBlocksLayer from "@/components/SelectedBlocksLayer";
 import MovePreviewLayer from "@/components/MovePreviewLayer";
+import ContextMenu, { type SettingConfig } from "@/components/ContextMenu";
 import {
   useGridState,
   useViewportState,
@@ -17,7 +18,7 @@ import {
 import { Application, extend } from "@pixi/react";
 import { Container, Assets } from "pixi.js";
 import { useEffect, useState, useCallback } from "react";
-import type { BuildingBlock } from "@/types/building-blocks";
+import type { BuildingBlock, CarGeneratorBlock } from "@/types/building-blocks";
 import { BuildingBlockType } from "@/types/building-blocks";
 import {
   installEventHandling,
@@ -32,7 +33,9 @@ import {
 } from "@/services/event-manager";
 import { useSimulationStore } from "@/store/simulation-store";
 import { createStreetBlock } from "@/utils/street-utils";
+import { createCarGeneratorBlock, canPlaceCarGenerator } from "@/utils/car-generator-utils";
 import { screenToGrid } from "@/utils/coordinate-conversion";
+import { initializeECSWorld, updateECS, createCarGeneratorEntity, removeCarGeneratorEntity } from "@/ecs/world";
 
 // Extend PIXI components to make them available as JSX
 extend({ Container });
@@ -59,6 +62,13 @@ export default function Home() {
   // Local state for asset loading
   const [assetsLoaded, setAssetsLoaded] = useState(false);
 
+  // Local state for context menu
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    block: CarGeneratorBlock;
+  } | null>(null);
+
   // Preload sprite assets
   useEffect(() => {
     const loadAssets = async () => {
@@ -66,9 +76,20 @@ export default function Home() {
         // Add assets to the cache
         Assets.add({ alias: 'linear-street', src: '/sprites/Linear Street.png' });
         Assets.add({ alias: 'curved-street', src: '/sprites/Curved Street.png' });
+        Assets.add({ alias: 'car-gen-n', src: '/sprites/Car Gen N.png' });
+        Assets.add({ alias: 'car-gen-s', src: '/sprites/Car Gen S.png' });
+        Assets.add({ alias: 'car-gen-e', src: '/sprites/Car Gen E.png' });
+        Assets.add({ alias: 'car-gen-w', src: '/sprites/Car Gen W.png' });
 
         // Load the assets
-        await Assets.load(['linear-street', 'curved-street']);
+        await Assets.load([
+          'linear-street',
+          'curved-street',
+          'car-gen-n',
+          'car-gen-s',
+          'car-gen-e',
+          'car-gen-w',
+        ]);
 
         setAssetsLoaded(true);
       } catch (error) {
@@ -79,6 +100,11 @@ export default function Home() {
     };
 
     loadAssets();
+  }, []);
+
+  // Initialize ECS world once
+  useEffect(() => {
+    initializeECSWorld();
   }, []);
 
   // Handle building block placement
@@ -104,6 +130,35 @@ export default function Home() {
 
         // Update connections for existing streets that might now be connected
         updateStreetConnections(gridX, gridY);
+      } else if (selectedBlock.type === BuildingBlockType.CAR_GENERATOR) {
+        // Validate placement - must be adjacent to a street
+        if (!canPlaceCarGenerator(gridX, gridY, buildingBlocks)) {
+          console.warn('Car generator must be placed adjacent to a street');
+          return;
+        }
+
+        const carGenBlock = createCarGeneratorBlock(
+          `car-gen-${Date.now()}`,
+          gridX,
+          gridY,
+          buildingBlocks,
+          selectedBlock.properties?.frequency as number || 1,
+          selectedBlock.properties?.speed as number || 2,
+        );
+
+        if (carGenBlock) {
+          addBuildingBlock(carGenBlock);
+
+          // Create ECS entity for the car generator
+          createCarGeneratorEntity(
+            carGenBlock.id,
+            carGenBlock.gridX,
+            carGenBlock.gridY,
+            carGenBlock.direction,
+            carGenBlock.frequency,
+            carGenBlock.speed
+          );
+        }
       }
     },
     [selectedBlock, buildingBlocks, addBuildingBlock, updateStreetConnections],
@@ -198,8 +253,13 @@ export default function Home() {
         blocks: blocksToDelete,
       });
 
-      // Remove blocks
+      // Remove blocks and their ECS entities
       for (const block of blocksToDelete) {
+        // Remove ECS entity if it's a car generator
+        if (block.type === BuildingBlockType.CAR_GENERATOR) {
+          removeCarGeneratorEntity(block.id);
+        }
+
         state.removeBuildingBlock(block.gridX, block.gridY);
         // Update street connections for surrounding blocks
         state.updateStreetConnections(block.gridX, block.gridY);
@@ -295,6 +355,86 @@ export default function Home() {
     return cleanup;
   }, []);
 
+  // ECS Update loop for simulation
+  useEffect(() => {
+    if (!isSimulationRunning) return;
+
+    let animationFrameId: number;
+
+    const loop = () => {
+      updateECS(grid.size, viewport.width, viewport.height);
+      animationFrameId = requestAnimationFrame(loop);
+    };
+
+    animationFrameId = requestAnimationFrame(loop);
+
+    return () => {
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
+    };
+  }, [isSimulationRunning, grid.size, viewport.width, viewport.height]);
+
+  // Prevent default context menu and handle right-click on building blocks
+  useEffect(() => {
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+
+      // Convert screen coordinates to grid coordinates
+      const { x: gridX, y: gridY } = screenToGrid(
+        e.clientX,
+        e.clientY,
+        grid,
+        viewport
+      );
+
+      // Check if there's a car generator at this position
+      const key = `${gridX},${gridY}`;
+      const block = buildingBlocks.get(key);
+
+      if (block && block.type === BuildingBlockType.CAR_GENERATOR) {
+        setContextMenu({
+          x: e.clientX,
+          y: e.clientY,
+          block: block as CarGeneratorBlock,
+        });
+      }
+    };
+
+    window.addEventListener('contextmenu', handleContextMenu);
+
+    return () => {
+      window.removeEventListener('contextmenu', handleContextMenu);
+    };
+  }, [grid, viewport, buildingBlocks]);
+
+  // Context menu handlers
+  const handleContextMenuClose = useCallback(() => {
+    setContextMenu(null);
+  }, []);
+
+  const handleSettingChange = useCallback((id: string, value: number) => {
+    if (!contextMenu) return;
+
+    const block = contextMenu.block;
+    const updatedBlock: CarGeneratorBlock = {
+      ...block,
+      [id]: value,
+    };
+
+    // Update in store
+    const state = useSimulationStore.getState();
+    const key = `${block.gridX},${block.gridY}`;
+    const newMap = new Map(state.buildingBlocks);
+    newMap.set(key, updatedBlock);
+    state.buildingBlocks = newMap;
+
+    // Update context menu
+    setContextMenu({ ...contextMenu, block: updatedBlock });
+
+    // Note: ECS entity update would be handled here in a full implementation
+  }, [contextMenu]);
+
   // Viewport size is now handled by the event manager
 
   // Don't render until viewport size is available and assets are loaded
@@ -374,6 +514,44 @@ export default function Home() {
         onBlockSelect={setSelectedBlock}
         selectedBlock={selectedBlock}
       />
+
+      {/* Context Menu */}
+      {contextMenu && (() => {
+        const settings: SettingConfig[] = [
+          {
+            id: 'frequency',
+            label: 'Frequency',
+            value: contextMenu.block.frequency,
+            unit: 'cars/tile',
+            type: 'slider',
+            min: 0.1,
+            max: 5,
+            step: 0.1,
+          },
+          {
+            id: 'speed',
+            label: 'Speed',
+            value: contextMenu.block.speed,
+            unit: 'tiles/second',
+            type: 'slider',
+            min: 0.5,
+            max: 10,
+            step: 0.5,
+          },
+        ];
+
+        return (
+          <ContextMenu
+            x={contextMenu.x}
+            y={contextMenu.y}
+            title="Car Generator Settings"
+            subtitle={`Direction: ${contextMenu.block.direction.toUpperCase()}`}
+            settings={settings}
+            onSettingChange={handleSettingChange}
+            onClose={handleContextMenuClose}
+          />
+        );
+      })()}
 
       {/* Floating Grid Controls Panel */}
       <FloatingPanel
